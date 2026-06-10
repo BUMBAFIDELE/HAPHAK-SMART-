@@ -46,7 +46,7 @@ def verify():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-
+print("DATA RECEIVED:", data)
     try:
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
         text = message["text"]["body"]
