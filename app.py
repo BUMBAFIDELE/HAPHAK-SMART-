@@ -5,13 +5,17 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# === ENV VARIABLES ===
+# =====================
+# ENV VARIABLES
+# =====================
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# === GEMINI CONFIG ===
+# =====================
+# GEMINI SETUP
+# =====================
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -21,9 +25,11 @@ def home():
     return "HAPHAK AI is running!"
 
 
-# === WEBHOOK VERIFICATION (META) ===
+# =====================
+# WEBHOOK VERIFY (META)
+# =====================
 @app.route("/webhook", methods=["GET"])
-def verify_webhook():
+def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
@@ -34,21 +40,23 @@ def verify_webhook():
     return "Verification failed", 403
 
 
-# === RECEIVE WHATSAPP MESSAGES ===
+# =====================
+# RECEIVE WHATSAPP MESSAGE
+# =====================
 @app.route("/webhook", methods=["POST"])
-def receive_message():
+def webhook():
     data = request.get_json()
 
     try:
         message = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        user_text = message["text"]["body"]
-        user_number = message["from"]
+        text = message["text"]["body"]
+        sender = message["from"]
 
-        # === SEND TO GEMINI ===
-        response = model.generate_content(user_text)
+        # ===== GEMINI RESPONSE =====
+        response = model.generate_content(text)
         reply = response.text
 
-        # === SEND BACK TO WHATSAPP ===
+        # ===== SEND BACK TO WHATSAPP =====
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
 
         headers = {
@@ -58,7 +66,7 @@ def receive_message():
 
         payload = {
             "messaging_product": "whatsapp",
-            "to": user_number,
+            "to": sender,
             "text": {"body": reply}
         }
 
