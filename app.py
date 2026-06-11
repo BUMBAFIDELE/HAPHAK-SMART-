@@ -13,22 +13,24 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-print("=== STARTUP ===")
+print("=================================")
+print("APPLICATION STARTING")
 print("VERIFY_TOKEN:", "OK" if VERIFY_TOKEN else "MISSING")
 print("WHATSAPP_TOKEN:", "OK" if WHATSAPP_TOKEN else "MISSING")
 print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID)
 print("GEMINI_API_KEY:", "OK" if GEMINI_API_KEY else "MISSING")
+print("=================================")
 
 # =========================
 # GEMINI SETUP
 # =========================
-genai.configure(api_key=GEMINI_API_KEY)
-
 try:
+    genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel("gemini-1.5-flash")
     print("Gemini initialized successfully")
 except Exception as e:
     print("GEMINI INIT ERROR:", str(e))
+    model = None
 
 # =========================
 # HOME ROUTE
@@ -46,7 +48,7 @@ def verify_webhook():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print("Verification request received")
+    print("Webhook verification request received")
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
         print("Webhook verified successfully")
@@ -61,9 +63,9 @@ def verify_webhook():
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    print("\n==============================")
+    print("\n=================================")
     print("WEBHOOK HIT")
-    print("==============================")
+    print("=================================")
 
     data = request.get_json()
 
@@ -93,39 +95,43 @@ def webhook():
         print("MESSAGES:", messages)
 
         if not messages:
-            print("No message received")
+            print("No messages in webhook")
             return "OK", 200
 
         message = messages[0]
 
-        user_text = message.get("text", {}).get("body")
         user_number = message.get("from")
+        user_text = message.get("text", {}).get("body")
 
         print("USER NUMBER:", user_number)
         print("USER TEXT:", user_text)
 
         if not user_text:
-            print("No text message")
+            print("No text content")
+            return "OK", 200
+
+        if model is None:
+            print("Gemini model unavailable")
             return "OK", 200
 
         # =========================
         # GEMINI
         # =========================
 
-        print("Calling Gemini...")
+        print("CALLING GEMINI...")
 
         response = model.generate_content(user_text)
 
+        print("GEMINI RESPONSE RECEIVED")
+
         reply = response.text
 
-        print("Gemini response:")
+        print("AI REPLY:")
         print(reply)
 
         # =========================
         # SEND TO WHATSAPP
         # =========================
-
-        print("Sending reply to WhatsApp...")
 
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
 
@@ -142,8 +148,8 @@ def webhook():
             }
         }
 
-        print("REQUEST URL:", url)
-        print("REQUEST PAYLOAD:", payload)
+        print("SENDING TO WHATSAPP...")
+        print("URL:", url)
 
         r = requests.post(
             url,
@@ -152,20 +158,21 @@ def webhook():
             timeout=30
         )
 
-        print("WHATSAPP STATUS:", r.status_code)
+        print("WHATSAPP STATUS CODE:", r.status_code)
         print("WHATSAPP RESPONSE:")
         print(r.text)
 
     except Exception as e:
-        print("===================================")
+        print("=================================")
         print("ERROR OCCURRED")
         print(str(e))
-        print("===================================")
+        print("=================================")
 
     return "OK", 200
 
 # =========================
-# RUN
+# RUN APP
 # =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
