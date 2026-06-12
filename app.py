@@ -21,18 +21,19 @@ print("=================================", flush=True)
 model = None
 
 try:
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
-print("GEMINI READY", flush=True)
-except Exception as e:
-print("GEMINI INIT ERROR:", str(e), flush=True)
+    
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    print("GEMINI READY", flush=True)
+    except Exception as e:
+    print("GEMINI INIT ERROR:", str(e), flush=True)
 
-@app.route("/")
-def home():
-return "HAPHAK AI is running!", 200
+    @app.route("/")
+    def home():
+    return "HAPHAK Smart Agent is running!", 200
 
-@app.route("/webhook", methods=["GET"])
-def verify_webhook():
+    @app.route("/webhook", methods=["GET"])
+    def verify_webhook():
 
 ```
 mode = request.args.get("hub.mode")
