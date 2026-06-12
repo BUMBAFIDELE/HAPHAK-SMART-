@@ -26,8 +26,11 @@ print("=================================")
 # =========================
 try:
     genai.configure(api_key=GEMINI_API_KEY)
+
     model = genai.GenerativeModel("gemini-2.0-flash")
+
     print("Gemini initialized successfully")
+
 except Exception as e:
     print("GEMINI INIT ERROR:", str(e))
     model = None
@@ -44,6 +47,7 @@ def home():
 # =========================
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
+
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
@@ -63,39 +67,35 @@ def verify_webhook():
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-    print("\n=================================")
-    print("WEBHOOK HIT")
-    print("=================================")
+    print("\n=================================", flush=True)
+    print("WEBHOOK HIT", flush=True)
+    print("=================================", flush=True)
 
     data = request.get_json()
 
-    print("RAW DATA:")
-    print(data)
+    print("RAW DATA:", flush=True)
+    print(data, flush=True)
 
     try:
 
         entry = data.get("entry", [])
-        print("ENTRY:", entry)
 
         if not entry:
-            print("No entry found")
+            print("No entry found", flush=True)
             return "OK", 200
 
         changes = entry[0].get("changes", [])
-        print("CHANGES:", changes)
 
         if not changes:
-            print("No changes found")
+            print("No changes found", flush=True)
             return "OK", 200
 
         value = changes[0].get("value", {})
-        print("VALUE:", value)
 
         messages = value.get("messages")
-        print("MESSAGES:", messages)
 
         if not messages:
-            print("No messages in webhook")
+            print("No messages in webhook", flush=True)
             return "OK", 200
 
         message = messages[0]
@@ -103,31 +103,30 @@ def webhook():
         user_number = message.get("from")
         user_text = message.get("text", {}).get("body")
 
-        print("USER NUMBER:", user_number)
-        print("USER TEXT:", user_text)
+        print("USER NUMBER:", user_number, flush=True)
+        print("USER TEXT:", user_text, flush=True)
 
         if not user_text:
-            print("No text content")
             return "OK", 200
 
         if model is None:
-            print("Gemini model unavailable")
+            print("Gemini model unavailable", flush=True)
             return "OK", 200
 
         # =========================
         # GEMINI
         # =========================
 
-        print("CALLING GEMINI...")
+        print("CALLING GEMINI...", flush=True)
 
         response = model.generate_content(user_text)
 
-        print("GEMINI RESPONSE RECEIVED")
+        print("GEMINI RESPONSE RECEIVED", flush=True)
 
         reply = response.text
 
-        print("AI REPLY:")
-        print(reply)
+        print("AI REPLY:", flush=True)
+        print(reply, flush=True)
 
         # =========================
         # SEND TO WHATSAPP
@@ -148,8 +147,7 @@ def webhook():
             }
         }
 
-        print("SENDING TO WHATSAPP...")
-        print("URL:", url)
+        print("SENDING TO WHATSAPP...", flush=True)
 
         r = requests.post(
             url,
@@ -158,15 +156,16 @@ def webhook():
             timeout=30
         )
 
-        print("WHATSAPP STATUS CODE:", r.status_code)
-        print("WHATSAPP RESPONSE:")
-        print(r.text)
+        print("WHATSAPP STATUS CODE:", r.status_code, flush=True)
+        print("WHATSAPP RESPONSE:", flush=True)
+        print(r.text, flush=True)
 
     except Exception as e:
-        print("=================================")
-        print("ERROR OCCURRED")
-        print(str(e))
-        print("=================================")
+
+        print("=================================", flush=True)
+        print("ERROR OCCURRED", flush=True)
+        print(str(e), flush=True)
+        print("=================================", flush=True)
 
     return "OK", 200
 
