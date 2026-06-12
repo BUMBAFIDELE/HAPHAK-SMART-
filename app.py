@@ -5,6 +5,10 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
+# =========================
+# VARIABLES D'ENVIRONNEMENT
+# =========================
+
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
@@ -18,156 +22,168 @@ print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID, flush=True)
 print("GEMINI_API_KEY:", "OK" if GEMINI_API_KEY else "MISSING", flush=True)
 print("=================================", flush=True)
 
+# =========================
+# INITIALISATION GEMINI
+# =========================
+
 model = None
 
 try:
-    
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    print("GEMINI READY", flush=True)
-    except Exception as e:
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        print("GEMINI READY", flush=True)
+    else:
+        print("NO GEMINI API KEY FOUND", flush=True)
+
+except Exception as e:
     print("GEMINI INIT ERROR:", str(e), flush=True)
 
-    @app.route("/")
-    def home():
+# =========================
+# PAGE D'ACCUEIL
+# =========================
+
+@app.route("/")
+def home():
     return "HAPHAK Smart Agent is running!", 200
 
-    @app.route("/webhook", methods=["GET"])
-    def verify_webhook():
+# =========================
+# WEBHOOK VERIFY (GET)
+# =========================
 
-```
-mode = request.args.get("hub.mode")
-token = request.args.get("hub.verify_token")
-challenge = request.args.get("hub.challenge")
+@app.route("/webhook", methods=["GET"])
+def verify_webhook():
 
-print("VERIFY REQUEST RECEIVED", flush=True)
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
-if mode == "subscribe" and token == VERIFY_TOKEN:
-    print("WEBHOOK VERIFIED", flush=True)
-    return challenge, 200
+    print("VERIFY REQUEST RECEIVED", flush=True)
 
-return "Verification failed", 403
-```
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("WEBHOOK VERIFIED", flush=True)
+        return challenge, 200
+
+    return "Verification failed", 403
+
+# =========================
+# WEBHOOK MESSAGE (POST)
+# =========================
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
 
-```
-print("WEBHOOK HIT", flush=True)
-
-try:
-
-    data = request.get_json()
-
-    print("PAYLOAD:", flush=True)
-    print(data, flush=True)
-
-    entry = data.get("entry", [])
-
-    if not entry:
-        print("NO ENTRY", flush=True)
-        return "OK", 200
-
-    changes = entry[0].get("changes", [])
-
-    if not changes:
-        print("NO CHANGES", flush=True)
-        return "OK", 200
-
-    value = changes[0].get("value", {})
-
-    messages = value.get("messages")
-
-    if not messages:
-        print("NO MESSAGES", flush=True)
-        return "OK", 200
-
-    message = messages[0]
-
-    user_number = message.get("from")
-    user_text = message.get("text", {}).get("body", "")
-
-    print("FROM:", user_number, flush=True)
-    print("TEXT:", user_text, flush=True)
-
-    if not user_text:
-        return "OK", 200
-
-    # ========= GEMINI =========
+    print("WEBHOOK HIT", flush=True)
 
     try:
+        data = request.get_json()
 
-        if model:
+        print("PAYLOAD:", flush=True)
+        print(data, flush=True)
 
-            print("CALLING GEMINI...", flush=True)
+        entry = data.get("entry", [])
 
-            response = model.generate_content(user_text)
+        if not entry:
+            return "OK", 200
 
-            reply = response.text
+        changes = entry[0].get("changes", [])
 
-            print("GEMINI SUCCESS", flush=True)
+        if not changes:
+            return "OK", 200
 
-        else:
+        value = changes[0].get("value", {})
 
-            reply = (
-                "Bonjour. Merci pour votre requête, HAPHAK Smart Agent est disponible pour vous mais "
-                "Notre partenaire technique n'est actuellement pas disponible. Réessayez Plus tard svp."
+        messages = value.get("messages")
+
+        if not messages:
+            return "OK", 200
+
+        message = messages[0]
+
+        user_number = message.get("from")
+        user_text = message.get("text", {}).get("body", "")
+
+        print("FROM:", user_number, flush=True)
+        print("TEXT:", user_text, flush=True)
+
+        if not user_text:
+            return "OK", 200
+
+        # =========================
+        # APPEL GEMINI
+        # =========================
+
+        try:
+
+            if model:
+
+                print("CALLING GEMINI...", flush=True)
+
+                response = model.generate_content(user_text)
+
+                reply = response.text
+
+                print("GEMINI SUCCESS", flush=True)
+
+            else:
+
+                reply = (
+                    "Bonjour. Le service IA n'est actuellement pas disponible."
+                )
+
+        except Exception as gemini_error:
+
+            print(
+                "GEMINI ERROR:",
+                str(gemini_error),
+                flush=True
             )
 
-    except Exception as gemini_error:
+            reply = (
+                "Bonjour. Votre message a été reçu mais le service IA est temporairement indisponible."
+            )
 
-        print(
-            "GEMINI ERROR:",
-            str(gemini_error),
-            flush=True
-        )
+        # =========================
+        # ENVOI WHATSAPP
+        # =========================
 
-        reply = (
-            "Bonjour. Votre message a été reçu : "
-            + user_text +
-            ". Le service IA est temporairement indisponible."
-        )
+        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages"
 
-    # ========= SEND WHATSAPP =========
-
-    url = (
-        f"https://graph.facebook.com/v19.0/"
-        f"{PHONE_NUMBER_ID}/messages"
-    )
-
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": user_number,
-        "type": "text",
-        "text": {
-            "body": reply
+        headers = {
+            "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+            "Content-Type": "application/json"
         }
-    }
 
-    print("SENDING MESSAGE...", flush=True)
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": user_number,
+            "type": "text",
+            "text": {
+                "body": reply
+            }
+        }
 
-    r = requests.post(
-        url,
-        headers=headers,
-        json=payload,
-        timeout=30
-    )
+        print("SENDING MESSAGE...", flush=True)
 
-    print("STATUS:", r.status_code, flush=True)
-    print("RESPONSE:", r.text, flush=True)
+        r = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
 
-except Exception as e:
+        print("STATUS:", r.status_code, flush=True)
+        print("RESPONSE:", r.text, flush=True)
 
-    print("GENERAL ERROR:", str(e), flush=True)
+    except Exception as e:
+        print("GENERAL ERROR:", str(e), flush=True)
 
-return "OK", 200
-```
+    return "OK", 200
 
-if **name** == "**main**":
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
+# =========================
+# LANCEMENT
+# =========================
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
