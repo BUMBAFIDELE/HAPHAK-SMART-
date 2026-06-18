@@ -1,7 +1,7 @@
 from flask import Flask, request
 import requests
 import os
-import google.generativeai as genai
+from groq import Groq
 
 app = Flask(__name__)
 
@@ -12,32 +12,39 @@ app = Flask(__name__)
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 print("=================================", flush=True)
 print("HAPHAK AI STARTING...", flush=True)
 print("VERIFY_TOKEN:", "OK" if VERIFY_TOKEN else "MISSING", flush=True)
 print("WHATSAPP_TOKEN:", "OK" if WHATSAPP_TOKEN else "MISSING", flush=True)
 print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID, flush=True)
-print("GEMINI_API_KEY:", "OK" if GEMINI_API_KEY else "MISSING", flush=True)
+print("GROQ_API_KEY:", "OK" if GROQ_API_KEY else "MISSING", flush=True)
 print("=================================", flush=True)
 
 # =========================
-# INITIALISATION GEMINI
+# INITIALISATION GROQ
 # =========================
 
-model = None
+client = None
 
 try:
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        print("GEMINI READY", flush=True)
+
+    if GROQ_API_KEY:
+
+        client = Groq(
+            api_key=GROQ_API_KEY
+        )
+
+        print("GROQ READY", flush=True)
+
     else:
-        print("NO GEMINI API KEY FOUND", flush=True)
+
+        print("NO GROQ API KEY FOUND", flush=True)
 
 except Exception as e:
-    print("GEMINI INIT ERROR:", str(e), flush=True)
+
+    print("GROQ INIT ERROR:", str(e), flush=True)
 
 # =========================
 # PAGE D'ACCUEIL
@@ -61,7 +68,9 @@ def verify_webhook():
     print("VERIFY REQUEST RECEIVED", flush=True)
 
     if mode == "subscribe" and token == VERIFY_TOKEN:
+
         print("WEBHOOK VERIFIED", flush=True)
+
         return challenge, 200
 
     return "Verification failed", 403
@@ -76,6 +85,7 @@ def webhook():
     print("WEBHOOK HIT", flush=True)
 
     try:
+
         data = request.get_json()
 
         print("PAYLOAD:", flush=True)
@@ -110,20 +120,45 @@ def webhook():
             return "OK", 200
 
         # =========================
-        # APPEL GEMINI
+        # APPEL GROQ
         # =========================
 
         try:
 
-            if model:
+            if client:
 
-                print("CALLING GEMINI...", flush=True)
+                print("CALLING GROQ...", flush=True)
 
-                response = model.generate_content(user_text)
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": """
+Tu es HAPHAK Smart Agent.
 
-                reply = response.text
+Ton rôle :
 
-                print("GEMINI SUCCESS", flush=True)
+- Répondre aux clients de manière professionnelle.
+- Qualifier les prospects.
+- Encourager la conversion en clients.
+- Répondre dans la langue du client.
+- Être poli, clair et utile.
+- Si tu ne connais pas une information, dis-le honnêtement.
+"""
+                        },
+                        {
+                            "role": "user",
+                            "content": user_text
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=800
+                )
+
+                reply = completion.choices[0].message.content
+
+                print("GROQ SUCCESS", flush=True)
 
             else:
 
@@ -131,11 +166,11 @@ def webhook():
                     "Bonjour. Le service IA n'est actuellement pas disponible."
                 )
 
-        except Exception as gemini_error:
+        except Exception as groq_error:
 
             print(
-                "GEMINI ERROR:",
-                str(gemini_error),
+                "GROQ ERROR:",
+                str(groq_error),
                 flush=True
             )
 
@@ -159,7 +194,7 @@ def webhook():
             "to": user_number,
             "type": "text",
             "text": {
-                "body": reply
+                "body": reply[:4096]
             }
         }
 
@@ -176,6 +211,7 @@ def webhook():
         print("RESPONSE:", r.text, flush=True)
 
     except Exception as e:
+
         print("GENERAL ERROR:", str(e), flush=True)
 
     return "OK", 200
@@ -185,5 +221,10 @@ def webhook():
 # =========================
 
 if __name__ == "__main__":
+
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
