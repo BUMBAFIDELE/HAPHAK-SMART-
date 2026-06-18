@@ -1,4 +1,5 @@
+groq
 flask
 requests
 gunicorn
-google-generativeai
+
