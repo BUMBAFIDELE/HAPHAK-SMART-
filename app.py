@@ -2,7 +2,7 @@ from flask import Flask, request
 import requests
 import os
 from groq import Groq
-
+from supabase import create_client
 app = Flask(__name__)
 
 # =========================
@@ -13,6 +13,8 @@ VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
 
 print("=================================", flush=True)
 print("HAPHAK AI STARTING...", flush=True)
@@ -47,8 +49,68 @@ except Exception as e:
     print("GROQ INIT ERROR:", str(e), flush=True)
 
 # =========================
+# INITIALISATION SUPABASE
+# =========================
+
+supabase = None
+
+try:
+
+    if SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY:
+
+        supabase = create_client(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY
+        )
+
+        print(
+            "SUPABASE READY",
+            flush=True
+        )
+
+    else:
+
+        print(
+            "SUPABASE CONFIG MISSING",
+            flush=True
+        )
+
+except Exception as e:
+
+    print(
+        "SUPABASE ERROR:",
+        str(e),
+        flush=True
+    )
+# =========================
 # PAGE D'ACCUEIL
 # =========================
+def save_conversation(
+    phone,
+    role,
+    message
+):
+
+    try:
+
+        if not supabase:
+            return
+
+        supabase.table(
+            "conversations"
+        ).insert({
+            "telephone": phone,
+            "role": role,
+            "message": message
+        }).execute()
+
+    except Exception as e:
+
+        print(
+            "SAVE CONVERSATION ERROR:",
+            str(e),
+            flush=True
+        )
 
 @app.route("/")
 def home():
@@ -112,7 +174,12 @@ def webhook():
 
         user_number = message.get("from")
         user_text = message.get("text", {}).get("body", "")
-
+        save_conversation(
+        user_number,
+        "user",
+        user_text
+        )
+        
         print("FROM:", user_number, flush=True)
         print("TEXT:", user_text, flush=True)
 
@@ -157,7 +224,11 @@ Ton rôle :
                 )
 
                 reply = completion.choices[0].message.content
-
+                save_conversation(
+                user_number,
+                "assistant",
+                reply
+                )
                 print("GROQ SUCCESS", flush=True)
 
             else:
