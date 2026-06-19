@@ -216,9 +216,9 @@ def webhook():
         user_number = message.get("from")
         user_text = message.get("text", {}).get("body", "")
         save_conversation(
-        user_number,
-        "user",
-        user_text
+            user_number,
+            "user",
+            user_text
         )
         
         print("FROM:", user_number, flush=True)
@@ -231,9 +231,9 @@ def webhook():
         # APPEL GROQ
         # =========================
 
-        try:
+         try:
 
-            if client:
+if client:
 
     print("CALLING GROQ...", flush=True)
 
@@ -252,8 +252,7 @@ acheteurs,
 transporteurs
 et acteurs de l'économie circulaire.
 
-Tu te souviens du contexte
-de la conversation.
+Tu te souviens du contexte de la conversation.
 
 Réponds dans la langue du client.
 """
@@ -283,20 +282,16 @@ Réponds dans la langue du client.
     )
 
     print("GROQ SUCCESS", flush=True)
-                save_conversation(
-                user_number,
-                "assistant",
-                reply
-                )
-                print("GROQ SUCCESS", flush=True)
 
-            else:
+else:
 
-                reply = (
-                    "Bonjour. Le service IA n'est actuellement pas disponible."
-                )
+    reply = (
+        "Bonjour. Le service IA n'est actuellement pas disponible."
+    )
 
-        except Exception as groq_error:
+                
+
+         except Exception as groq_error:
 
             print(
                 "GROQ ERROR:",
