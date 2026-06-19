@@ -111,6 +111,47 @@ def save_conversation(
             str(e),
             flush=True
         )
+def get_conversation_history(phone):
+
+    try:
+
+        if not supabase:
+            return []
+
+        result = (
+            supabase
+            .table("conversations")
+            .select("*")
+            .eq("telephone", phone)
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+        )
+
+        rows = result.data
+
+        rows.reverse()
+
+        history = []
+
+        for row in rows:
+
+            history.append({
+                "role": row["role"],
+                "content": row["message"]
+            })
+
+        return history
+
+    except Exception as e:
+
+        print(
+            "HISTORY ERROR:",
+            str(e),
+            flush=True
+        )
+
+        return []
 
 @app.route("/")
 def home():
@@ -194,36 +235,54 @@ def webhook():
 
             if client:
 
-                print("CALLING GROQ...", flush=True)
+    print("CALLING GROQ...", flush=True)
 
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": """
-Tu es HAPHAK Smart Agent.
+    history = get_conversation_history(
+        user_number
+    )
 
-Ton rôle :
+    messages_for_ai = [
+        {
+            "role": "system",
+            "content": """
+Tu es HAPHAK Green Agro.
 
-- Répondre aux clients de manière professionnelle.
-- Qualifier les prospects.
-- Encourager la conversion en clients.
-- Répondre dans la langue du client.
-- Être poli, clair et utile.
-- Si tu ne connais pas une information, dis-le honnêtement.
+Tu aides les agriculteurs,
+acheteurs,
+transporteurs
+et acteurs de l'économie circulaire.
+
+Tu te souviens du contexte
+de la conversation.
+
+Réponds dans la langue du client.
 """
-                        },
-                        {
-                            "role": "user",
-                            "content": user_text
-                        }
-                    ],
-                    temperature=0.7,
-                    max_tokens=800
-                )
+        }
+    ]
 
-                reply = completion.choices[0].message.content
+    messages_for_ai.extend(history)
+
+    messages_for_ai.append({
+        "role": "user",
+        "content": user_text
+    })
+
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages_for_ai,
+        temperature=0.7,
+        max_tokens=800
+    )
+
+    reply = completion.choices[0].message.content
+
+    save_conversation(
+        user_number,
+        "assistant",
+        reply
+    )
+
+    print("GROQ SUCCESS", flush=True)
                 save_conversation(
                 user_number,
                 "assistant",
