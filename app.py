@@ -265,7 +265,8 @@ Réponds dans la langue du client.
         "role": "user",
         "content": user_text
     })
-
+ print("HISTORY SENT TO AI:", flush=True)
+ print(messages_for_ai, flush=True)
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=messages_for_ai,
