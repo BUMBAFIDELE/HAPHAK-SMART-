@@ -75,7 +75,7 @@ try:
             flush=True
         )
 
-except Exception as e:
+ except Exception as e:
 
     print(
         "SUPABASE ERROR:",
@@ -111,6 +111,7 @@ def save_conversation(
             str(e),
             flush=True
         )
+        
 def get_conversation_history(phone):
 
     try:
@@ -233,13 +234,13 @@ def webhook():
 
     try:
 
-if client:
+        if client:
 
-    print("CALLING GROQ...", flush=True)
+          print("CALLING GROQ...", flush=True)
 
-    history = get_conversation_history(
-        user_number
-    )
+          history = get_conversation_history(
+          user_number
+          )
 
     messages_for_ai = [
         {
