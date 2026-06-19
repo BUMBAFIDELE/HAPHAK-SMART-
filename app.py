@@ -110,7 +110,45 @@ def save_conversation(
             str(e),
             flush=True
         )
-        
+
+def save_user(phone):
+
+    try:
+
+        if not supabase:
+            return
+
+        existing = (
+            supabase
+            .table("users")
+            .select("id")
+            .eq("telephone", phone)
+            .execute()
+        )
+
+        if existing.data:
+            return
+
+        supabase.table(
+            "users"
+        ).insert({
+            "telephone": phone
+        }).execute()
+
+        print(
+            "NEW USER CREATED:",
+            phone,
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "SAVE USER ERROR:",
+            str(e),
+            flush=True
+        )
+
 def get_conversation_history(phone):
 
     try:
@@ -219,6 +257,7 @@ def webhook():
 
         user_number = message.get("from")
         user_text = message.get("text", {}).get("body", "")
+        save_user(user_number)
         save_conversation(
             user_number,
             "user",
