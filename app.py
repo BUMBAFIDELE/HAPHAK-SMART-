@@ -341,9 +341,13 @@ Réponds dans la langue du client.
 
     except Exception as e:
 
-           print("GENERAL ERROR:", str(e), flush=True)
+           print(
+               "GENERAL ERROR:", 
+               str(e), 
+               flush=True
+           )
 
-        return "OK", 200
+            return "OK", 200
 
 # =========================
 # LANCEMENT
