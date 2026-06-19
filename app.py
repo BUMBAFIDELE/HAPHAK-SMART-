@@ -74,7 +74,7 @@ try:
             flush=True
         )
 
- except Exception as e:
+except Exception as e:
 
     print(
         "SUPABASE ERROR:",
