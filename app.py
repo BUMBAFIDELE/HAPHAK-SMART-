@@ -82,7 +82,7 @@ except Exception as e:
         flush=True
     )
 # =========================
-# PAGE D'ACCUEIL
+# FONCTIONS UTILITAIRES
 # =========================
 def save_conversation(
     phone,
@@ -152,6 +152,10 @@ def get_conversation_history(phone):
         )
 
         return []
+
+# =========================
+# PAGE D'ACCUEIL
+# =========================
 
 @app.route("/")
 def home():
@@ -341,11 +345,11 @@ Réponds dans la langue du client.
 
     except Exception as e:
 
-    print(
-           "GENERAL ERROR:",
-           str(e),
-           flush=True
-    )
+        print(
+               "GENERAL ERROR:",
+               str(e),
+               flush=True
+        )
 
     return "OK", 200
 
