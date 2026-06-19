@@ -347,7 +347,7 @@ Réponds dans la langue du client.
                flush=True
            )
 
-            return "OK", 200
+        return "OK", 200
 
 # =========================
 # LANCEMENT
