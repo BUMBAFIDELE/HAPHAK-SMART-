@@ -43,7 +43,6 @@ try:
     else:
 
         print("NO GROQ API KEY FOUND", flush=True)
-
 except Exception as e:
 
     print("GROQ INIT ERROR:", str(e), flush=True)
@@ -232,20 +231,24 @@ def webhook():
         # APPEL GROQ
         # =========================
 
-    try:
+   # =========================
+        # APPEL GROQ
+        # =========================
 
-        if client:
+        try:
 
-          print("CALLING GROQ...", flush=True)
+            if client:
 
-          history = get_conversation_history(
-          user_number
-          )
+                print("CALLING GROQ...", flush=True)
 
-    messages_for_ai = [
-        {
-            "role": "system",
-            "content": """
+                history = get_conversation_history(
+                    user_number
+                )
+
+                messages_for_ai = [
+                    {
+                        "role": "system",
+                        "content": """
 Tu es HAPHAK Green Agro.
 
 Tu aides les agriculteurs,
@@ -257,43 +260,43 @@ Tu te souviens du contexte de la conversation.
 
 Réponds dans la langue du client.
 """
-        }
-    ]
+                    }
+                ]
 
-    messages_for_ai.extend(history)
+                messages_for_ai.extend(history)
 
-    messages_for_ai.append({
-        "role": "user",
-        "content": user_text
-    })
- print("HISTORY SENT TO AI:", flush=True)
- print(messages_for_ai, flush=True)
-    completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=messages_for_ai,
-        temperature=0.7,
-        max_tokens=800
-    )
+                messages_for_ai.append({
+                    "role": "user",
+                    "content": user_text
+                })
 
-    reply = completion.choices[0].message.content
+                print("HISTORY SENT TO AI:", flush=True)
+                print(messages_for_ai, flush=True)
 
-    save_conversation(
-        user_number,
-        "assistant",
-        reply
-    )
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages_for_ai,
+                    temperature=0.7,
+                    max_tokens=800
+                )
 
-    print("GROQ SUCCESS", flush=True)
+                reply = completion.choices[0].message.content
 
-else:
+                save_conversation(
+                    user_number,
+                    "assistant",
+                    reply
+                )
 
-    reply = (
-        "Bonjour. Le service IA n'est actuellement pas disponible."
-    )
+                print("GROQ SUCCESS", flush=True)
 
-                
+            else:
 
-         except Exception as groq_error:
+                reply = (
+                    "Bonjour. Le service IA n'est actuellement pas disponible."
+                )
+
+        except Exception as groq_error:
 
             print(
                 "GROQ ERROR:",
@@ -303,7 +306,10 @@ else:
 
             reply = (
                 "Bonjour. Votre message a été reçu mais le service IA est temporairement indisponible."
-            )
+            ) 
+
+
+
 
         # =========================
         # ENVOI WHATSAPP
@@ -339,9 +345,9 @@ else:
 
     except Exception as e:
 
-        print("GENERAL ERROR:", str(e), flush=True)
+           print("GENERAL ERROR:", str(e), flush=True)
 
-    return "OK", 200
+        return "OK", 200
 
 # =========================
 # LANCEMENT
