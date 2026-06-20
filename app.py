@@ -149,6 +149,38 @@ def save_user(phone):
             flush=True
         )
 
+def update_user_role(
+    phone,
+    role
+):
+
+    try:
+
+        if not supabase:
+            return
+
+        supabase.table(
+            "users"
+        ).update({
+            "role": role
+        }).eq(
+            "telephone",
+            phone
+        ).execute()
+
+        print(
+            f"ROLE UPDATED: {phone} -> {role}",
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "ROLE UPDATE ERROR:",
+            str(e),
+            flush=True
+        )
+
 def get_conversation_history(phone):
 
     try:
@@ -288,16 +320,35 @@ def webhook():
                     {
                         "role": "system",
                         "content": """
-Tu es HAPHAK Green Agro.
+Tu es HAPHAK Smart Agent/ Green Agro.
 
-Tu aides les agriculteurs,
-acheteurs,
-transporteurs
-et acteurs de l'économie circulaire.
+Tu aides :
 
-Tu te souviens du contexte de la conversation.
+- producteurs
+- acheteurs
+- transporteurs
+- entreprises
+- citoyens
 
-Réponds dans la langue du client.
+Quand un utilisateur parle de ses activités,
+essaie d'identifier son rôle.
+
+Producteur :
+cultive, élève, produit, récolte.
+
+Acheteur :
+cherche à acheter.
+
+Transporteur :
+camion, transport, livraison.
+
+Entreprise :
+société, coopérative, organisation.
+
+Citoyen :
+autre utilisateur.
+
+Réponds normalement.
 """
                     }
                 ]
