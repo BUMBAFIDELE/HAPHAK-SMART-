@@ -131,7 +131,7 @@ def save_profile(phone, json_data):
                 ).insert({
                     "telephone": phone,
                     "nom": json_data.get("nom"),
-                    "culture": produit.get("culture"),
+                    "cultures": produit.get("culture"),
                     "quantite": produit.get("quantite"),
                     "territoire": json_data.get("localisation")
                 }).execute()
