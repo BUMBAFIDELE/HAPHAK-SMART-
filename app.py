@@ -108,7 +108,85 @@ def update_user_role(phone, role):
         print(f"ROLE UPDATED: {phone} -> {role}", flush=True)
     except Exception as e:
         print("ROLE UPDATE ERROR:", str(e), flush=True)
+def save_profile(phone, json_data):
 
+    try:
+
+        if not supabase:
+            return
+
+        role = json_data.get("role")
+
+        # PRODUCTEUR
+        if role == "producteur":
+
+            produits = json_data.get("produits", [])
+
+            for produit in produits:
+
+                supabase.table(
+                    "producteurs"
+                ).insert({
+                    "telephone": phone,
+                    "nom": json_data.get("nom"),
+                    "culture": produit.get("culture"),
+                    "quantite": produit.get("quantite"),
+                    "territoire": json_data.get("localisation")
+                }).execute()
+
+        # ACHETEUR
+        elif role == "acheteur":
+
+            supabase.table(
+                "acheteurs"
+            ).insert({
+                "telephone": phone,
+                "nom": json_data.get("nom"),
+                "produit": json_data.get("produit"),
+                "quantite": json_data.get("quantite"),
+                "region": json_data.get("localisation")
+            }).execute()
+
+        # TRANSPORTEUR
+        elif role == "transporteur":
+
+            supabase.table(
+                "transporteurs"
+            ).insert({
+                "telephone": phone,
+                "nom": json_data.get("nom"),
+                "vehicule": json_data.get("vehicule"),
+                "capacite": json_data.get("capacite"),
+                "region": json_data.get("localisation")
+            }).execute()
+
+        # DECHETS
+        elif role == "citoyen":
+
+            if json_data.get("type_dechet"):
+
+                supabase.table(
+                    "dechets"
+                ).insert({
+                    "telephone": phone,
+                    "nom": json_data.get("nom"),
+                    "type_dechet": json_data.get("type_dechet"),
+                    "quantite": json_data.get("quantite"),
+                    "localisation": json_data.get("localisation")
+                }).execute()
+
+        print(
+            "PROFILE SAVED",
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "PROFILE SAVE ERROR:",
+            str(e),
+            flush=True
+        )
 def get_conversation_history(phone):
     try:
         if not supabase:
@@ -215,7 +293,6 @@ def webhook():
 
                 history = get_conversation_history(user_number)
 
-                # Correction ici : Définition propre du prompt système
                 system_prompt = """Tu es Haphak Smart Agent / Green Agro.
 
 Tu aides :
@@ -255,12 +332,10 @@ Exemple :
 Si une information est inconnue, mets null.
 Le JSON doit toujours être valide."""
 
-                # Construction correcte du tableau de messages pour Groq
                 messages_for_ai = [
                     {"role": "system", "content": system_prompt}
                 ]
                 
-                # Ajout de l'historique et du message actuel
                 messages_for_ai.extend(history)
                 messages_for_ai.append({
                     "role": "user",
@@ -279,34 +354,22 @@ Le JSON doit toujours être valide."""
 
                 reply = completion.choices[0].message.content
 
-if "===HAPHAK_JSON===" in reply:
-
-    try:
-
-        text_part, json_part = reply.split(
-            "===HAPHAK_JSON===",
-            1
-        )
-
-        reply = text_part.strip()
-
-        data = json.loads(
-            json_part.strip()
-        )
-
-        print(
-            "JSON DETECTED:",
-            data,
-            flush=True
-        )
-
-    except Exception as e:
-
-        print(
-            "JSON PARSE ERROR:",
-            str(e),
-            flush=True
-        )             
+                # --- CORRECTION DE L'INDENTATION ICI ---
+                if "===HAPHAK_JSON===" in reply:
+                    try:
+                        text_part, json_part = reply.split("===HAPHAK_JSON===", 1)
+                        reply = text_part.strip()
+                        
+                        json_data = json.loads(json_part.strip())
+                        print("JSON DETECTED:", json_data, flush=True)
+                        
+                        # Optionnel mais recommandé : Mise à jour automatique du rôle dans Supabase
+                        detected_role = json_data.get("role")
+                        if detected_role:
+                            update_user_role(user_number, detected_role)
+                            save_profile(user_number, json_data)
+                    except Exception as e:
+                        print("JSON PARSE ERROR:", str(e), flush=True)             
 
                 save_conversation(user_number, "assistant", reply)
                 print("GROQ SUCCESS", flush=True)
