@@ -73,28 +73,43 @@ def save_conversation(phone, role, message):
         print("SAVE CONVERSATION ERROR:", str(e), flush=True)
 
 def save_user(phone):
+
     try:
+
+        print("SAVE USER CALLED:", phone, flush=True)
+
         if not supabase:
+            print("SUPABASE NOT AVAILABLE", flush=True)
             return
 
         existing = (
             supabase
             .table("users")
-            .select("id")
+            .select("*")
             .eq("telephone", phone)
             .execute()
         )
 
+        print("EXISTING USER:", existing.data, flush=True)
+
         if existing.data:
+            print("USER ALREADY EXISTS", flush=True)
             return
 
-        supabase.table("users").insert({
-            "telephone": phone
-        }).execute()
+        result = (
+            supabase
+            .table("users")
+            .insert({
+                "telephone": phone
+            })
+            .execute()
+        )
 
-        print("NEW USER CREATED:", phone, flush=True)
+        print("USER INSERT RESULT:", result.data, flush=True)
+
     except Exception as e:
-        print("SAVE USER ERROR:", str(e), flush=True)
+
+        print("SAVE USER ERROR:", repr(e), flush=True)
 
 def update_user_role(phone, role):
     try:
