@@ -123,6 +123,34 @@ def update_user_role(phone, role):
         print(f"ROLE UPDATED: {phone} -> {role}", flush=True)
     except Exception as e:
         print("ROLE UPDATE ERROR:", str(e), flush=True)
+def update_user_profile(phone, json_data):
+
+    try:
+
+        if not supabase:
+            return
+
+        supabase.table("users").update({
+            "nom": json_data.get("nom"),
+            "role": json_data.get("role"),
+            "territoire": json_data.get("localisation")
+        }).eq(
+            "telephone",
+            phone
+        ).execute()
+
+        print(
+            "USER PROFILE UPDATED",
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "USER PROFILE ERROR:",
+            str(e),
+            flush=True
+        )       
 def save_profile(phone, json_data):
 
     try:
@@ -384,6 +412,7 @@ Le JSON doit toujours être valide."""
                         detected_role = json_data.get("role")
                         if detected_role:
                             update_user_role(user_number, detected_role)
+                            update_user_profile(user_number, json_data)
                             save_profile(user_number, json_data)
                     except Exception as e:
                         print("JSON PARSE ERROR:", str(e), flush=True)             
