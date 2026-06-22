@@ -116,7 +116,9 @@ def save_profile(phone, json_data):
             return
 
         role = json_data.get("role")
-
+        print("SAVE PROFILE JSON:", json_data, flush=True)
+        print("ROLE DETECTED:", role, flush=True)
+        
         # PRODUCTEUR
         if role == "producteur":
 
