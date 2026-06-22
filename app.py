@@ -316,7 +316,8 @@ def webhook():
                     user_number
                 )
 
-                Tu es Haphak Smart Agent / Green Agro.
+                "content": """
+Tu es Haphak Smart Agent / Green Agro.
 
 Tu aides :
 
@@ -347,7 +348,7 @@ A la fin de chaque réponse ajoute exactement :
 ===HAPHAK_JSON===
 
 puis un JSON valide contenant les informations détectées.
-
+"""
 Exemple :
 
 {
