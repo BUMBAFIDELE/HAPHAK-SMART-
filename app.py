@@ -1,6 +1,7 @@
 from flask import Flask, request
 import requests
 import os
+import json 
 from groq import Groq
 from supabase import create_client
 
@@ -277,6 +278,35 @@ Le JSON doit toujours être valide."""
                 )
 
                 reply = completion.choices[0].message.content
+
+if "===HAPHAK_JSON===" in reply:
+
+    try:
+
+        text_part, json_part = reply.split(
+            "===HAPHAK_JSON===",
+            1
+        )
+
+        reply = text_part.strip()
+
+        data = json.loads(
+            json_part.strip()
+        )
+
+        print(
+            "JSON DETECTED:",
+            data,
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            "JSON PARSE ERROR:",
+            str(e),
+            flush=True
+        )             
 
                 save_conversation(user_number, "assistant", reply)
                 print("GROQ SUCCESS", flush=True)
