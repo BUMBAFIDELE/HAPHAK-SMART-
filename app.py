@@ -73,9 +73,7 @@ def save_conversation(phone, role, message):
         print("SAVE CONVERSATION ERROR:", str(e), flush=True)
 
 def save_user(phone):
-
     try:
-
         print("SAVE USER CALLED:", phone, flush=True)
 
         if not supabase:
@@ -106,9 +104,7 @@ def save_user(phone):
         )
 
         print("USER INSERT RESULT:", result.data, flush=True)
-
     except Exception as e:
-
         print("SAVE USER ERROR:", repr(e), flush=True)
 
 def update_user_role(phone, role):
@@ -123,10 +119,9 @@ def update_user_role(phone, role):
         print(f"ROLE UPDATED: {phone} -> {role}", flush=True)
     except Exception as e:
         print("ROLE UPDATE ERROR:", str(e), flush=True)
+
 def update_user_profile(phone, json_data):
-
     try:
-
         if not supabase:
             return
 
@@ -134,27 +129,15 @@ def update_user_profile(phone, json_data):
             "nom": json_data.get("nom"),
             "role": json_data.get("role"),
             "territoire": json_data.get("localisation")
-        }).eq(
-            "telephone",
-            phone
-        ).execute()
+        }).eq("telephone", phone).execute()
 
-        print(
-            "USER PROFILE UPDATED",
-            flush=True
-        )
-
+        print("USER PROFILE UPDATED", flush=True)
     except Exception as e:
+        print("USER PROFILE ERROR:", str(e), flush=True)       
 
-        print(
-            "USER PROFILE ERROR:",
-            str(e),
-            flush=True
-        )       
+# --- CORRECTION DE LA FONCTION DUPLIQUÉE ICI ---
 def save_profile(phone, json_data):
-
     try:
-
         if not supabase:
             return
 
@@ -164,41 +147,9 @@ def save_profile(phone, json_data):
         
         # PRODUCTEUR
         if role == "producteur":
-
             produits = json_data.get("produits", [])
-
             for produit in produits:
-
-                supabase.table(
-                    "producteurs"
-                ).insert({
-                    "telephone": phone,
-                    "nom": json_data.get("nom"),
-                    "cultures": produit.get("culture"),
-                    "quantite": produit.get("quantite"),
-                    "territoire": json_data.get("localisation")
-                }).execute()
-
-        
-    try:
-
-        if not supabase:
-            return
-
-        role = json_data.get("role")
-        print("SAVE PROFILE JSON:", json_data, flush=True)
-        print("ROLE DETECTED:", role, flush=True)
-        
-        # PRODUCTEUR
-        if role == "producteur":
-
-            produits = json_data.get("produits", [])
-
-            for produit in produits:
-
-                supabase.table(
-                    "producteurs"
-                ).insert({
+                supabase.table("producteurs").insert({
                     "telephone": phone,
                     "nom": json_data.get("nom"),
                     "cultures": produit.get("culture"),
@@ -208,10 +159,7 @@ def save_profile(phone, json_data):
 
         # ACHETEUR
         elif role == "acheteur":
-
-            supabase.table(
-                "acheteurs"
-            ).insert({
+            supabase.table("acheteurs").insert({
                 "telephone": phone,
                 "nom": json_data.get("nom"),
                 "produit": json_data.get("produit"),
@@ -221,10 +169,7 @@ def save_profile(phone, json_data):
 
         # TRANSPORTEUR
         elif role == "transporteur":
-
-            supabase.table(
-                "transporteurs"
-            ).insert({
+            supabase.table("transporteurs").insert({
                 "telephone": phone,
                 "nom": json_data.get("nom"),
                 "vehicule": json_data.get("vehicule"),
@@ -234,12 +179,8 @@ def save_profile(phone, json_data):
 
         # DECHETS
         elif role == "citoyen":
-
             if json_data.get("type_dechet"):
-
-                supabase.table(
-                    "dechets"
-                ).insert({
+                supabase.table("dechets").insert({
                     "telephone": phone,
                     "nom": json_data.get("nom"),
                     "type_dechet": json_data.get("type_dechet"),
@@ -247,18 +188,10 @@ def save_profile(phone, json_data):
                     "localisation": json_data.get("localisation")
                 }).execute()
 
-        print(
-            "PROFILE SAVED",
-            flush=True
-        )
-
+        print("PROFILE SAVED", flush=True)
     except Exception as e:
+        print("PROFILE SAVE ERROR:", str(e), flush=True)
 
-        print(
-            "PROFILE SAVE ERROR:",
-            str(e),
-            flush=True
-        )
 def get_conversation_history(phone):
     try:
         if not supabase:
@@ -435,7 +368,6 @@ Le JSON doit toujours être valide."""
 
                 reply = completion.choices[0].message.content
 
-                # --- CORRECTION DE L'INDENTATION ICI ---
                 if "===HAPHAK_JSON===" in reply:
                     try:
                         text_part, json_part = reply.split("===HAPHAK_JSON===", 1)
@@ -444,7 +376,6 @@ Le JSON doit toujours être valide."""
                         json_data = json.loads(json_part.strip())
                         print("JSON DETECTED:", json_data, flush=True)
                         
-                        # Optionnel mais recommandé : Mise à jour automatique du rôle dans Supabase
                         detected_role = json_data.get("role")
                         if detected_role:
                             update_user_role(user_number, detected_role)
