@@ -158,14 +158,7 @@ def save_profile(phone, json_data):
                 }).execute()
 
         # ACHETEUR
-        elif role == "acheteur":
-            supabase.table("acheteurs").insert({
-                "telephone": phone,
-                "nom": json_data.get("nom"),
-                "produit": json_data.get("produit"),
-                "quantite": json_data.get("quantite"),
-                "region": json_data.get("localisation")
-            }).execute()
+        u
 
         # TRANSPORTEUR
         elif role == "transporteur":
