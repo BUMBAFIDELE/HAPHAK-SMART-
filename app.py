@@ -179,6 +179,33 @@ def save_profile(phone, json_data):
                     "territoire": json_data.get("localisation")
                 }).execute()
 
+        
+    try:
+
+        if not supabase:
+            return
+
+        role = json_data.get("role")
+        print("SAVE PROFILE JSON:", json_data, flush=True)
+        print("ROLE DETECTED:", role, flush=True)
+        
+        # PRODUCTEUR
+        if role == "producteur":
+
+            produits = json_data.get("produits", [])
+
+            for produit in produits:
+
+                supabase.table(
+                    "producteurs"
+                ).insert({
+                    "telephone": phone,
+                    "nom": json_data.get("nom"),
+                    "cultures": produit.get("culture"),
+                    "quantite": produit.get("quantite"),
+                    "territoire": json_data.get("localisation")
+                }).execute()
+
         # ACHETEUR
         elif role == "acheteur":
 
@@ -372,6 +399,15 @@ Exemple :
   "produits": [
     {"culture": "maïs", "quantite": "5 tonnes"}
   ]
+}
+Exemple acheteur :
+
+{
+  "role": "acheteur",
+  "nom": "Jean",
+  "produit": "maïs",
+  "quantite": "10 tonnes",
+  "localisation": "Goma"
 }
 
 Si une information est inconnue, mets null.
