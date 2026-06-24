@@ -174,7 +174,7 @@ def check_matching(phone, json_data):
                 culture = produit.get("culture")
                 if not culture: continue
                 
-                acheteurs = supabase.table("acheteurs").select("*").ilike("produit", culture).execute()
+                acheteurs = supabase.table("acheteurs").select("*").ilike("produit", f"%{culture}%").execute()
 
                 for acheteur in acheteurs.data:
                     # Amélioration n°2 : Déduplication avant création de l'alerte
@@ -199,9 +199,9 @@ def check_matching(phone, json_data):
 
         elif role == "acheteur":
             produit = json_data.get("produit")
-            if not producto: return
+            if not product: return
             
-            producteurs = supabase.table("producteurs").select("*").ilike("cultures", produit).execute()
+            producteurs = supabase.table("producteurs").select("*").ilike("cultures", f"%{produit}%").execute()
 
             for producteur in producteurs.data:
                 # Amélioration n°2 : Déduplication avant création de l'alerte
