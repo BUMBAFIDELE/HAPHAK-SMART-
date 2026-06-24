@@ -134,24 +134,74 @@ def save_profile(phone, json_data):
         if role == "producteur": 
             produits = json_data.get("produits", []) 
             for produit in produits: 
-                supabase.table("producteurs").insert({ 
-                    "telephone": phone, 
-                    "nom": json_data.get("nom"), 
-                    "cultures": produit.get("culture"), 
-                    "quantite": produit.get("quantite"), 
-                    "territoire": json_data.get("localisation") 
-                }).execute() 
+                existing = (
+    supabase
+    .table("producteurs")
+    .select("*")
+    .eq("telephone", phone)
+    .eq("cultures", produit.get("culture"))
+    .execute()
+)
+
+if existing.data:
+
+    supabase.table("producteurs").update({
+        "quantite": produit.get("quantite"),
+        "territoire": json_data.get("localisation")
+    }).eq(
+        "id",
+        existing.data[0]["id"]
+    ).execute()
+
+    print("PRODUCTEUR UPDATED", flush=True)
+
+else:
+
+    supabase.table("producteurs").insert({
+        "telephone": phone,
+        "nom": json_data.get("nom"),
+        "cultures": produit.get("culture"),
+        "quantite": produit.get("quantite"),
+        "territoire": json_data.get("localisation")
+    }).execute()
+
+    print("PRODUCTEUR CREATED", flush=True)
         # ACHETEUR 
         elif role == "acheteur": 
             print("ACHETEUR DETECTED", flush=True)
             print(json_data, flush=True)
-            supabase.table("acheteurs").insert({ 
-                "telephone": phone, 
-                "nom": json_data.get("nom"), 
-                "produit": json_data.get("produit"), 
-                "quantite": json_data.get("quantite"), 
-                "region": json_data.get("localisation") 
-            }).execute() 
+            existing = (
+    supabase
+    .table("acheteurs")
+    .select("*")
+    .eq("telephone", phone)
+    .eq("produit", json_data.get("produit"))
+    .execute()
+)
+
+if existing.data:
+
+    supabase.table("acheteurs").update({
+        "quantite": json_data.get("quantite"),
+        "region": json_data.get("localisation")
+    }).eq(
+        "id",
+        existing.data[0]["id"]
+    ).execute()
+
+    print("ACHETEUR UPDATED", flush=True)
+
+else:
+
+    supabase.table("acheteurs").insert({
+        "telephone": phone,
+        "nom": json_data.get("nom"),
+        "produit": json_data.get("produit"),
+        "quantite": json_data.get("quantite"),
+        "region": json_data.get("localisation")
+    }).execute()
+
+    print("ACHETEUR CREATED", flush=True)
         # TRANSPORTEUR 
         elif role == "transporteur": 
             supabase.table("transporteurs").insert({ 
