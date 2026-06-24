@@ -134,6 +134,10 @@ def save_profile(phone, json_data):
         if role == "producteur": 
             produits = json_data.get("produits", []) 
             for produit in produits: 
+                culture = produit.get("culture")
+
+                if not culture:
+                    continue
                 existing = (
                     supabase
                     .table("producteurs")
@@ -145,6 +149,7 @@ def save_profile(phone, json_data):
 
                 if existing.data:
                     supabase.table("producteurs").update({
+                        "nom": json_data.get("nom"),
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).eq(
