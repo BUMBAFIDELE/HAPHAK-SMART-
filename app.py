@@ -175,6 +175,73 @@ def save_profile(phone, json_data):
     except Exception as e: 
         print("PROFILE SAVE ERROR:", str(e), flush=True) 
 
+def check_matching(phone, json_data):
+
+    try:
+
+        if not supabase:
+            return
+
+        role = json_data.get("role")
+
+        # Quand un PRODUCTEUR arrive
+        if role == "producteur":
+
+            produits = json_data.get("produits", [])
+
+            for produit in produits:
+
+                culture = produit.get("culture")
+
+                acheteurs = (
+                    supabase
+                    .table("acheteurs")
+                    .select("*")
+                    .eq("produit", culture)
+                    .execute()
+                )
+
+                for acheteur in acheteurs.data:
+
+                    supabase.table("alertes").insert({
+                        "type_alerte": "matching_produit",
+                        "produit": culture,
+                        "producteur_tel": phone,
+                        "acheteur_tel": acheteur["telephone"],
+                        "message": f"Correspondance trouvée pour {culture}",
+                        "statut": "nouvelle"
+                    }).execute()
+
+        # Quand un ACHETEUR arrive
+        elif role == "acheteur":
+
+            produit = json_data.get("produit")
+
+            producteurs = (
+                supabase
+                .table("producteurs")
+                .select("*")
+                .eq("cultures", produit)
+                .execute()
+            )
+
+            for producteur in producteurs.data:
+
+                supabase.table("alertes").insert({
+                    "type_alerte": "matching_produit",
+                    "produit": produit,
+                    "producteur_tel": producteur["telephone"],
+                    "acheteur_tel": phone,
+                    "message": f"Correspondance trouvée pour {produit}",
+                    "statut": "nouvelle"
+                }).execute()
+
+        print("MATCHING DONE", flush=True)
+
+    except Exception as e:
+
+        print("MATCHING ERROR:", str(e), flush=True)
+
 def get_conversation_history(phone):
     try:
         if not supabase:
@@ -332,7 +399,8 @@ Le JSON doit toujours être valide."""
                         if detected_role: 
                             update_user_role(user_number, detected_role) 
                             update_user_profile(user_number, json_data) 
-                            save_profile(user_number, json_data) 
+                            save_profile(user_number, json_data)
+                            check_matching(user_number, json_data)
                     except Exception as e: 
                         print("JSON PARSE ERROR:", str(e), flush=True) 
                         
