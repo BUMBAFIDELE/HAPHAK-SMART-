@@ -134,7 +134,7 @@ def save_profile(phone, json_data):
         if role == "producteur": 
             produits = json_data.get("produits", []) 
             for produit in produits: 
-                culture = culture
+                culture = produit.get("culture")
 
                 if not culture:
                     continue
@@ -161,7 +161,7 @@ def save_profile(phone, json_data):
                     supabase.table("producteurs").insert({
                         "telephone": phone,
                         "nom": json_data.get("nom"),
-                        "cultures": produit.get("culture"),
+                        "cultures": culture,
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).execute()
@@ -279,4 +279,4 @@ def check_matching(phone, json_data):
                     "statut": "nouvelle"
                 }).execute()
 
-        print("MATCHING DONE
+        print("MATCHING DONE", flush= True)
