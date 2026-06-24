@@ -26,7 +26,7 @@ print("GROQ_API_KEY:", "OK" if GROQ_API_KEY else "MISSING", flush=True)
 print("=================================", flush=True)
 
 # =========================================
-# INITIALISATION GROQ
+# INITIALISATION DES CLIENTS
 # =========================================
 client = None
 try:
@@ -38,9 +38,6 @@ try:
 except Exception as e:
     print("GROQ INIT ERROR:", str(e), flush=True)
 
-# =========================================
-# INITIALISATION SUPABASE
-# =========================================
 supabase = None
 try:
     if SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY:
@@ -52,12 +49,11 @@ except Exception as e:
     print("SUPABASE ERROR:", str(e), flush=True)
 
 # =========================================
-# FONCTIONS UTILITAIRES
+# FONCTIONS UTILITAIRES & PERSISTANCE
 # =========================================
 def save_conversation(phone, role, message):
     try:
-        if not supabase:
-            return
+        if not supabase: return
         supabase.table("conversations").insert({
             "telephone": phone,
             "role": role,
@@ -68,80 +64,47 @@ def save_conversation(phone, role, message):
 
 def save_user(phone):
     try:
-        print("SAVE USER CALLED:", phone, flush=True)
-        if not supabase: 
-            print("SUPABASE NOT AVAILABLE", flush=True) 
-            return
-            
-        existing = (
-            supabase
-            .table("users")
-            .select("*")
-            .eq("telephone", phone)
-            .execute()
-        ) 
-        print("EXISTING USER:", existing.data, flush=True) 
-        
-        if existing.data: 
-            print("USER ALREADY EXISTS", flush=True) 
-            return 
-            
-        result = ( 
-            supabase 
-            .table("users") 
-            .insert({ "telephone": phone }) 
-            .execute() 
-        ) 
-        print("USER INSERT RESULT:", result.data, flush=True) 
+        if not supabase: return
+        existing = supabase.table("users").select("*").eq("telephone", phone).execute() 
+        if existing.data: return 
+        supabase.table("users").insert({ "telephone": phone }).execute() 
     except Exception as e: 
         print("SAVE USER ERROR:", repr(e), flush=True) 
 
 def update_user_role(phone, role):
     try:
-        if not supabase:
-            return
+        if not supabase: return
         supabase.table("users").update({ "role": role }).eq("telephone", phone).execute() 
-        print(f"ROLE UPDATED: {phone} -> {role}", flush=True) 
     except Exception as e: 
         print("ROLE UPDATE ERROR:", str(e), flush=True) 
 
 def update_user_profile(phone, json_data):
     try:
-        if not supabase:
-            return
-        supabase.table("users").update({ 
-            "nom": json_data.get("nom"), 
-            "role": json_data.get("role"), 
-            "territoire": json_data.get("localisation") 
-        }).eq("telephone", phone).execute() 
-        print("USER PROFILE UPDATED", flush=True) 
+        if not supabase: return
+        
+        # Amélioration n°3 : Construction dynamique pour éviter d'écraser par du null
+        updates = {}
+        if json_data.get("nom"): updates["nom"] = json_data.get("nom")
+        if json_data.get("role"): updates["role"] = json_data.get("role")
+        if json_data.get("localisation"): updates["territoire"] = json_data.get("localisation")
+        
+        if updates:
+            supabase.table("users").update(updates).eq("telephone", phone).execute() 
+            print("USER PROFILE UPDATED SANS ECRASEMENT NULL", flush=True) 
     except Exception as e: 
         print("USER PROFILE ERROR:", str(e), flush=True) 
 
 def save_profile(phone, json_data):
     try:
-        if not supabase:
-            return
-
+        if not supabase: return
         role = json_data.get("role") 
-        print("SAVE PROFILE JSON:", json_data, flush=True) 
-        print("ROLE DETECTED:", role, flush=True) 
         
-        # PRODUCTEUR 
         if role == "producteur": 
             produits = json_data.get("produits", []) 
             for produit in produits: 
                 culture = produit.get("culture")
-                if not culture:
-                    continue
-                existing = (
-                    supabase
-                    .table("producteurs")
-                    .select("*")
-                    .eq("telephone", phone)
-                    .eq("cultures", culture)
-                    .execute()
-                )
+                if not culture: continue
+                existing = supabase.table("producteurs").select("*").eq("telephone", phone).eq("cultures", culture).execute()
 
                 if existing.data:
                     supabase.table("producteurs").update({
@@ -149,7 +112,6 @@ def save_profile(phone, json_data):
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).eq("id", existing.data[0]["id"]).execute()
-                    print("PRODUCTEUR UPDATED", flush=True)
                 else:
                     supabase.table("producteurs").insert({
                         "telephone": phone,
@@ -158,115 +120,109 @@ def save_profile(phone, json_data):
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).execute()
-                    print("PRODUCTEUR CREATED", flush=True)
                     
-        # ACHETEUR 
         elif role == "acheteur": 
-            print("ACHETEUR DETECTED", flush=True)
-            print(json_data, flush=True)
             produit = json_data.get("produit")
+            if not produit: return
+            existing = supabase.table("acheteurs").select("*").eq("telephone", phone).eq("produit", produit).execute()
 
-            if produit:
-                existing = (
-                    supabase
-                    .table("acheteurs")
-                    .select("*")
-                    .eq("telephone", phone)
-                    .eq("produit", produit)
-                    .execute()
-                )
-
-                if existing.data:
-                    supabase.table("acheteurs").update({
-                        "nom": json_data.get("nom"),
-                        "quantite": json_data.get("quantite"),
-                        "region": json_data.get("localisation")
-                    }).eq("id", existing.data[0]["id"]).execute()
-                    print("ACHETEUR UPDATED", flush=True)
-                else:
-                    supabase.table("acheteurs").insert({
-                        "telephone": phone,
-                        "nom": json_data.get("nom"),
-                        "produit": produit,
-                        "quantite": json_data.get("quantite"),
-                        "region": json_data.get("localisation")
-                    }).execute()
-                    print("ACHETEUR CREATED", flush=True)
+            if existing.data:
+                supabase.table("acheteurs").update({
+                    "nom": json_data.get("nom"),
+                    "quantite": json_data.get("quantite"),
+                    "region": json_data.get("localisation")
+                }).eq("id", existing.data[0]["id"]).execute()
+            else:
+                supabase.table("acheteurs").insert({
+                    "telephone": phone,
+                    "nom": json_data.get("nom"),
+                    "produit": produit,
+                    "quantite": json_data.get("quantite"),
+                    "region": json_data.get("localisation")
+                }).execute()
                 
-        # TRANSPORTEUR 
         elif role == "transporteur": 
             supabase.table("transporteurs").insert({ 
-                "telephone": phone, 
-                "nom": json_data.get("nom"), 
-                "vehicule": json_data.get("vehicule"), 
-                "capacite": json_data.get("capacite"), 
+                "telephone": phone, "nom": json_data.get("nom"), 
+                "vehicule": json_data.get("vehicule"), "capacite": json_data.get("capacite"), 
                 "region": json_data.get("localisation") 
             }).execute() 
             
-        # DECHETS 
         elif role == "citoyen": 
             if json_data.get("type_dechet"): 
                 supabase.table("dechets").insert({ 
-                    "telephone": phone, 
-                    "nom": json_data.get("nom"), 
-                    "type_dechet": json_data.get("type_dechet"), 
-                    "quantite": json_data.get("quantite"), 
+                    "telephone": phone, "nom": json_data.get("nom"), 
+                    "type_dechet": json_data.get("type_dechet"), "quantite": json_data.get("quantite"), 
                     "localisation": json_data.get("localisation") 
                 }).execute() 
         print("PROFILE SAVED", flush=True) 
     except Exception as e: 
         print("PROFILE SAVE ERROR:", str(e), flush=True) 
 
+# =========================================
+# MOTEUR DE MATCHING AUTOMATIQUE
+# =========================================
 def check_matching(phone, json_data):
     try:
-        if not supabase:
-            return
-
+        if not supabase: return
         role = json_data.get("role")
 
-        # Quand un PRODUCTEUR arrive
+        # Amélioration n°1 : Utilisation de ilike() à la place de eq()
         if role == "producteur":
             produits = json_data.get("produits", [])
             for produit in produits:
                 culture = produit.get("culture")
-                acheteurs = (
-                    supabase
-                    .table("acheteurs")
-                    .select("*")
-                    .eq("produit", culture)
-                    .execute()
-                )
+                if not culture: continue
+                
+                acheteurs = supabase.table("acheteurs").select("*").ilike("produit", culture).execute()
 
                 for acheteur in acheteurs.data:
-                    supabase.table("alertes").insert({
-                        "type_alerte": "matching_produit",
-                        "produit": culture,
-                        "producteur_tel": phone,
-                        "acheteur_tel": acheteur["telephone"],
-                        "message": f"Correspondance trouvée pour {culture}",
-                        "statut": "nouvelle"
-                    }).execute()
+                    # Amélioration n°2 : Déduplication avant création de l'alerte
+                    existing_alert = (
+                        supabase.table("alertes")
+                        .select("*")
+                        .eq("producteur_tel", phone)
+                        .eq("acheteur_tel", acheteur["telephone"])
+                        .eq("produit", culture)
+                        .execute()
+                    )
+                    
+                    if not existing_alert.data:
+                        supabase.table("alertes").insert({
+                            "type_alerte": "matching_produit",
+                            "produit": culture,
+                            "producteur_tel": phone,
+                            "acheteur_tel": acheteur["telephone"],
+                            "message": f"Correspondance trouvée pour {culture}",
+                            "statut": "nouvelle"
+                        }).execute()
 
-        # Quand un ACHETEUR arrive
         elif role == "acheteur":
             produit = json_data.get("produit")
-            producteurs = (
-                supabase
-                .table("producteurs")
-                .select("*")
-                .eq("cultures", produit)
-                .execute()
-            )
+            if not producto: return
+            
+            producteurs = supabase.table("producteurs").select("*").ilike("cultures", produit).execute()
 
             for producteur in producteurs.data:
-                supabase.table("alertes").insert({
-                    "type_alerte": "matching_produit",
-                    "produit": produit,
-                    "producteur_tel": producteur["telephone"],
-                    "acheteur_tel": phone,
-                    "message": f"Correspondance trouvée pour {produit}",
-                    "statut": "nouvelle"
-                }).execute()
+                # Amélioration n°2 : Déduplication avant création de l'alerte
+                existing_alert = (
+                    supabase.table("alertes")
+                    .select("*")
+                    .eq("producteur_tel", producteur["telephone"])
+                    .eq("acheteur_tel", phone)
+                    .eq("produit", produit)
+                    .execute()
+                )
+                
+                if not existing_alert.data:
+                    supabase.table("alertes").insert({
+                        "type_alerte": "matching_produit",
+                        "produit": produit,
+                        "producteur_tel": producteur["telephone"],
+                        "acheteur_tel": phone,
+                        "message": f"Correspondance trouvée pour {produit}",
+                        "statut": "nouvelle"
+                    }).execute()
 
         print("MATCHING DONE", flush=True)
     except Exception as e:
@@ -274,17 +230,8 @@ def check_matching(phone, json_data):
 
 def get_conversation_history(phone):
     try:
-        if not supabase:
-            return []
-        result = ( 
-            supabase 
-            .table("conversations") 
-            .select("*") 
-            .eq("telephone", phone) 
-            .order("created_at", desc=True) 
-            .limit(10) 
-            .execute() 
-        ) 
+        if not supabase: return []
+        result = supabase.table("conversations").select("*").eq("telephone", phone).order("created_at", desc=True).limit(10).execute() 
         rows = result.data 
         rows.reverse() 
         return [{"role": row["role"], "content": row["message"]} for row in rows]
@@ -293,7 +240,7 @@ def get_conversation_history(phone):
         return [] 
 
 # =========================================
-# ROUTES FLASK
+# ROUTES FLASK & WEBHOOKS
 # =========================================
 @app.route("/")
 def home():
@@ -332,7 +279,54 @@ def webhook():
         try: 
             if client: 
                 history = get_conversation_history(user_number) 
-                system_prompt = "Tu es Haphak Smart Agent..." # Raccourci pour la lisibilité
+                
+                # Rétablissement du prompt complet d'origine
+                system_prompt = """Tu es Haphak Smart Agent / Green Agro. 
+
+Tu aides :
+producteurs
+acheteurs
+transporteurs
+entreprises
+citoyens
+
+Tu travaille dans plusieurs pays et plusieurs langues.
+
+Tu dois toujours :
+Répondre normalement au client.
+Comprendre son profil.
+Identifier son rôle.
+
+Les rôles possibles :
+producteur
+acheteur
+transporteur
+entreprise
+citoyen
+
+A la fin de chaque réponse ajoute exactement :
+===HAPHAK_JSON===
+puis un JSON valide contenant les informations détectées.
+
+Exemple :
+{
+"role": "producteur",
+"nom": "Fidele",
+"produits": [
+{"culture": "maïs", "quantite": "5 tonnes"}
+]
+}
+Exemple acheteur :
+{
+"role": "acheteur",
+"nom": "Jean",
+"produit": "maïs",
+"quantite": "10 tonnes",
+"localisation": "Goma"
+}
+
+Si une information est inconnue, mets null.
+Le JSON doit toujours être valide."""
                 
                 messages_for_ai = [{"role": "system", "content": system_prompt}] 
                 messages_for_ai.extend(history) 
