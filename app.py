@@ -186,6 +186,7 @@ def save_profile(phone, json_data):
 
             if existing.data:
                 supabase.table("acheteurs").update({
+                    "nom":json_data.get("nom"),
                     "quantite": json_data.get("quantite"),
                     "region": json_data.get("localisation")
                 }).eq(
