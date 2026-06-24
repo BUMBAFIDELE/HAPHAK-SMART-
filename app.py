@@ -134,7 +134,7 @@ def save_profile(phone, json_data):
         if role == "producteur": 
             produits = json_data.get("produits", []) 
             for produit in produits: 
-                culture = produit.get("culture")
+                culture = culture
 
                 if not culture:
                     continue
@@ -143,7 +143,7 @@ def save_profile(phone, json_data):
                     .table("producteurs")
                     .select("*")
                     .eq("telephone", phone)
-                    .eq("cultures", produit.get("culture"))
+                    .eq("cultures", culture)
                     .execute()
                 )
 
