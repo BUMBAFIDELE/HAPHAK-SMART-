@@ -135,73 +135,65 @@ def save_profile(phone, json_data):
             produits = json_data.get("produits", []) 
             for produit in produits: 
                 existing = (
-    supabase
-    .table("producteurs")
-    .select("*")
-    .eq("telephone", phone)
-    .eq("cultures", produit.get("culture"))
-    .execute()
-)
+                    supabase
+                    .table("producteurs")
+                    .select("*")
+                    .eq("telephone", phone)
+                    .eq("cultures", produit.get("culture"))
+                    .execute()
+                )
 
-if existing.data:
-
-    supabase.table("producteurs").update({
-        "quantite": produit.get("quantite"),
-        "territoire": json_data.get("localisation")
-    }).eq(
-        "id",
-        existing.data[0]["id"]
-    ).execute()
-
-    print("PRODUCTEUR UPDATED", flush=True)
-
-else:
-
-    supabase.table("producteurs").insert({
-        "telephone": phone,
-        "nom": json_data.get("nom"),
-        "cultures": produit.get("culture"),
-        "quantite": produit.get("quantite"),
-        "territoire": json_data.get("localisation")
-    }).execute()
-
-    print("PRODUCTEUR CREATED", flush=True)
+                if existing.data:
+                    supabase.table("producteurs").update({
+                        "quantite": produit.get("quantite"),
+                        "territoire": json_data.get("localisation")
+                    }).eq(
+                        "id",
+                        existing.data[0]["id"]
+                    ).execute()
+                    print("PRODUCTEUR UPDATED", flush=True)
+                else:
+                    supabase.table("producteurs").insert({
+                        "telephone": phone,
+                        "nom": json_data.get("nom"),
+                        "cultures": produit.get("culture"),
+                        "quantite": produit.get("quantite"),
+                        "territoire": json_data.get("localisation")
+                    }).execute()
+                    print("PRODUCTEUR CREATED", flush=True)
+                    
         # ACHETEUR 
         elif role == "acheteur": 
             print("ACHETEUR DETECTED", flush=True)
             print(json_data, flush=True)
             existing = (
-    supabase
-    .table("acheteurs")
-    .select("*")
-    .eq("telephone", phone)
-    .eq("produit", json_data.get("produit"))
-    .execute()
-)
+                supabase
+                .table("acheteurs")
+                .select("*")
+                .eq("telephone", phone)
+                .eq("produit", json_data.get("produit"))
+                .execute()
+            )
 
-if existing.data:
-
-    supabase.table("acheteurs").update({
-        "quantite": json_data.get("quantite"),
-        "region": json_data.get("localisation")
-    }).eq(
-        "id",
-        existing.data[0]["id"]
-    ).execute()
-
-    print("ACHETEUR UPDATED", flush=True)
-
-else:
-
-    supabase.table("acheteurs").insert({
-        "telephone": phone,
-        "nom": json_data.get("nom"),
-        "produit": json_data.get("produit"),
-        "quantite": json_data.get("quantite"),
-        "region": json_data.get("localisation")
-    }).execute()
-
-    print("ACHETEUR CREATED", flush=True)
+            if existing.data:
+                supabase.table("acheteurs").update({
+                    "quantite": json_data.get("quantite"),
+                    "region": json_data.get("localisation")
+                }).eq(
+                    "id",
+                    existing.data[0]["id"]
+                ).execute()
+                print("ACHETEUR UPDATED", flush=True)
+            else:
+                supabase.table("acheteurs").insert({
+                    "telephone": phone,
+                    "nom": json_data.get("nom"),
+                    "produit": json_data.get("produit"),
+                    "quantite": json_data.get("quantite"),
+                    "region": json_data.get("localisation")
+                }).execute()
+                print("ACHETEUR CREATED", flush=True)
+                
         # TRANSPORTEUR 
         elif role == "transporteur": 
             supabase.table("transporteurs").insert({ 
@@ -211,6 +203,7 @@ else:
                 "capacite": json_data.get("capacite"), 
                 "region": json_data.get("localisation") 
             }).execute() 
+            
         # DECHETS 
         elif role == "citoyen": 
             if json_data.get("type_dechet"): 
@@ -226,9 +219,7 @@ else:
         print("PROFILE SAVE ERROR:", str(e), flush=True) 
 
 def check_matching(phone, json_data):
-
     try:
-
         if not supabase:
             return
 
@@ -236,13 +227,9 @@ def check_matching(phone, json_data):
 
         # Quand un PRODUCTEUR arrive
         if role == "producteur":
-
             produits = json_data.get("produits", [])
-
             for produit in produits:
-
                 culture = produit.get("culture")
-
                 acheteurs = (
                     supabase
                     .table("acheteurs")
@@ -252,7 +239,6 @@ def check_matching(phone, json_data):
                 )
 
                 for acheteur in acheteurs.data:
-
                     supabase.table("alertes").insert({
                         "type_alerte": "matching_produit",
                         "produit": culture,
@@ -264,9 +250,7 @@ def check_matching(phone, json_data):
 
         # Quand un ACHETEUR arrive
         elif role == "acheteur":
-
             produit = json_data.get("produit")
-
             producteurs = (
                 supabase
                 .table("producteurs")
@@ -276,7 +260,6 @@ def check_matching(phone, json_data):
             )
 
             for producteur in producteurs.data:
-
                 supabase.table("alertes").insert({
                     "type_alerte": "matching_produit",
                     "produit": produit,
@@ -286,201 +269,4 @@ def check_matching(phone, json_data):
                     "statut": "nouvelle"
                 }).execute()
 
-        print("MATCHING DONE", flush=True)
-
-    except Exception as e:
-
-        print("MATCHING ERROR:", str(e), flush=True)
-
-def get_conversation_history(phone):
-    try:
-        if not supabase:
-            return []
-
-        result = ( 
-            supabase 
-            .table("conversations") 
-            .select("*") 
-            .eq("telephone", phone) 
-            .order("created_at", desc=True) 
-            .limit(10) 
-            .execute() 
-        ) 
-        rows = result.data 
-        rows.reverse() 
-        history = [] 
-        for row in rows: 
-            history.append({ "role": row["role"], "content": row["message"] }) 
-        return history 
-    except Exception as e: 
-        print("HISTORY ERROR:", str(e), flush=True) 
-        return [] 
-
-# =========================================
-# PAGE D'ACCUEIL
-# =========================================
-@app.route("/")
-def home():
-    return "HAPHAK Smart Agent is running!", 200
-
-# =========================================
-# WEBHOOK VERIFY (GET)
-# =========================================
-@app.route("/webhook", methods=["GET"])
-def verify_webhook():
-    mode = request.args.get("hub.mode")
-    token = request.args.get("hub.verify_token")
-    challenge = request.args.get("hub.challenge")
-
-    print("VERIFY REQUEST RECEIVED", flush=True) 
-    if mode == "subscribe" and token == VERIFY_TOKEN: 
-        print("WEBHOOK VERIFIED", flush=True) 
-        return challenge, 200 
-    return "Verification failed", 403 
-
-# =========================================
-# WEBHOOK MESSAGE (POST)
-# =========================================
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    print("WEBHOOK HIT", flush=True)
-
-    try: 
-        data = request.get_json() 
-        print("PAYLOAD:", flush=True) 
-        print(data, flush=True) 
-        entry = data.get("entry", []) 
-        if not entry: 
-            return "OK", 200 
-        changes = entry[0].get("changes", []) 
-        if not changes: 
-            return "OK", 200 
-        value = changes[0].get("value", {}) 
-        messages = value.get("messages") 
-        if not messages: 
-            return "OK", 200 
-        message = messages[0] 
-        user_number = message.get("from") 
-        user_text = message.get("text", {}).get("body", "") 
-        
-        save_user(user_number) 
-        save_conversation(user_number, "user", user_text) 
-        print("FROM:", user_number, flush=True) 
-        print("TEXT:", user_text, flush=True) 
-        if not user_text: 
-            return "OK", 200 
-            
-        # =========================================
-        # APPEL GROQ
-        # =========================================
-        reply = "Bonjour. Le service IA n'est actuellement pas disponible." 
-        try: 
-            if client: 
-                print("CALLING GROQ...", flush=True) 
-                history = get_conversation_history(user_number) 
-                system_prompt = """Tu es Haphak Smart Agent / Green Agro. 
-
-Tu aides :
-producteurs
-acheteurs
-transporteurs
-entreprises
-citoyens
-
-Tu travaille dans plusieurs pays et plusieurs langues.
-
-Tu dois toujours :
-Répondre normalement au client.
-Comprendre son profil.
-Identifier son rôle.
-
-Les rôles possibles :
-producteur
-acheteur
-transporteur
-entreprise
-citoyen
-
-A la fin de chaque réponse ajoute exactement :
-===HAPHAK_JSON===
-puis un JSON valide contenant les informations détectées.
-
-Exemple :
-{
-"role": "producteur",
-"nom": "Fidele",
-"produits": [
-{"culture": "maïs", "quantite": "5 tonnes"}
-]
-}
-Exemple acheteur :
-{
-"role": "acheteur",
-"nom": "Jean",
-"produit": "maïs",
-"quantite": "10 tonnes",
-"localisation": "Goma"
-}
-
-Si une information est inconnue, mets null.
-Le JSON doit toujours être valide."""
-
-                messages_for_ai = [ {"role": "system", "content": system_prompt} ] 
-                messages_for_ai.extend(history) 
-                messages_for_ai.append({ "role": "user", "content": user_text }) 
-                print("HISTORY SENT TO AI:", flush=True) 
-                print(messages_for_ai, flush=True) 
-                
-                completion = client.chat.completions.create( 
-                    model="llama-3.3-70b-versatile", 
-                    messages=messages_for_ai, 
-                    temperature=0.7, 
-                    max_tokens=800 
-                ) 
-                reply = completion.choices[0].message.content 
-                
-                if "===HAPHAK_JSON===" in reply: 
-                    try: 
-                        text_part, json_part = reply.split("===HAPHAK_JSON===", 1) 
-                        reply = text_part.strip() 
-                        json_data = json.loads(json_part.strip()) 
-                        print("JSON DETECTED:", json_data, flush=True) 
-                        detected_role = json_data.get("role") 
-                        if detected_role: 
-                            update_user_role(user_number, detected_role) 
-                            update_user_profile(user_number, json_data) 
-                            save_profile(user_number, json_data)
-                            check_matching(user_number, json_data)
-                    except Exception as e: 
-                        print("JSON PARSE ERROR:", str(e), flush=True) 
-                        
-                save_conversation(user_number, "assistant", reply) 
-                print("GROQ SUCCESS", flush=True) 
-        except Exception as groq_error: 
-            print("GROQ ERROR:", str(groq_error), flush=True) 
-            reply = "Bonjour. Votre message a été reçu mais le service IA est temporairement indisponible." 
-            
-        # =========================================
-        # ENVOI WHATSAPP
-        # =========================================
-        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
-        headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
-        payload = { 
-            "messaging_product": "whatsapp", 
-            "to": user_number, 
-            "type": "text", 
-            "text": { "body": reply[:4096] } 
-        } 
-        print("SENDING MESSAGE...", flush=True) 
-        r = requests.post( url, headers=headers, json=payload, timeout=30 ) 
-        print("STATUS:", r.status_code, flush=True) 
-        print("RESPONSE:", r.text, flush=True) 
-    except Exception as e: 
-        print("GENERAL ERROR:", str(e), flush=True) 
-        
-    return "OK", 200
-
-# Lancement correct avec __name__
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+        print("MATCHING DONE
