@@ -242,6 +242,45 @@ def check_matching(phone, json_data):
 
         print("MATCHING ERROR:", str(e), flush=True)
 
+def create_matching_alert(json_data, phone):
+    try:
+        if not supabase:
+            return
+
+        role = json_data.get("role")
+
+        # ACHETEUR -> chercher producteurs
+        if role == "acheteur":
+
+            produit = json_data.get("produit")
+
+            if not produit:
+                return
+
+            producteurs = (
+                supabase
+                .table("producteurs")
+                .select("*")
+                .ilike("cultures", f"%{produit}%")
+                .execute()
+            )
+
+            for p in producteurs.data:
+
+                supabase.table("alertes").insert({
+                    "type_alerte": "matching",
+                    "producteur_tel": p.get("telephone"),
+                    "acheteur_tel": phone,
+                    "produit": produit,
+                    "message": f"Acheteur recherchant {produit}",
+                    "statut": "nouveau"
+                }).execute()
+
+                print("MATCH CREATED", flush=True)
+
+    except Exception as e:
+        print("MATCHING ERROR:", str(e), flush=True)
+
 def get_conversation_history(phone):
     try:
         if not supabase:
@@ -400,6 +439,7 @@ Le JSON doit toujours être valide."""
                             update_user_role(user_number, detected_role) 
                             update_user_profile(user_number, json_data) 
                             save_profile(user_number, json_data)
+                            create_matching_alert(json_data, user_number)
                             check_matching(user_number, json_data)
                     except Exception as e: 
                         print("JSON PARSE ERROR:", str(e), flush=True) 
