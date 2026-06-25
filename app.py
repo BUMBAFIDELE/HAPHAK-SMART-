@@ -188,21 +188,34 @@ def check_matching(phone, json_data):
                         
                     )
                     if not existing_alert.data:
-                        supabase.table("alertes").insert({
-                            "type_alerte": "matching_produit",
-                            "produit": culture,
-                            "producteur_tel": phone,
-                            "acheteur_tel": acheteur["telephone"],
-                            "message": f"Correspondance trouvée pour {culture}",
-                            "statut": "nouvelle"
-                        }).execute()
 
+                        supabase.table("alertes").insert({
+                        "type_alerte": "matching_produit",
+                        "produit": culture,
+                        "producteur_tel": phone,
+                        "acheteur_tel": acheteur["telephone"],
+                        "message": f"Correspondance trouvée pour {culture}",
+                        "statut": "nouvelle"
+                        })
+                        .execute()
+
+                    existing_transaction = (
+                        supabase.table("transactions")
+                        .select("*")
+                        .eq("producteur_tel", phone)
+                        .eq("acheteur_tel", acheteur["telephone"])
+                        .eq("produit", culture)
+                        .execute()
+                        )
+
+                    if not existing_transaction.data:
                         supabase.table("transactions").insert({
-                            "produit": produit,
-                            "producteur_tel": producteur["telephone"],
-                            "acheteur_tel": phone,
-                            "statut": "matching"
-                        }).execute()
+                        "produit": culture,
+                        "producteur_tel": phone,
+                        "acheteur_tel": acheteur["telephone"],
+                        "statut": "matching"
+                        })
+                        .execute()
 
         elif role == "acheteur":
             produit = normalize(json_data.get("produit"))
@@ -221,21 +234,34 @@ def check_matching(phone, json_data):
                     .execute()
                 )
                 
-                if not existing_alert.data:
-                    supabase.table("alertes").insert({
-                        "type_alerte": "matching_produit",
-                        "produit": produit,
-                        "producteur_tel": producteur["telephone"],
-                        "acheteur_tel": phone,
-                        "message": f"Correspondance trouvée pour {produit}",
-                        "statut": "nouvelle"
-                    }).execute()
-                    supabase.table("transactions").insert({
-                       "produit": produit,
-                       "producteur_tel": producteur["telephone"],
-                       "acheteur_tel": phone,
-                       "statut": "matching"
-                    }).execute()
+            if not existing_alert.data:
+
+                     supabase.table("alertes").insert({
+                     "type_alerte": "matching_produit",
+                     "produit": produit,
+                     "producteur_tel": producteur["telephone"],
+                     "acheteur_tel": phone,
+                     "message": f"Correspondance trouvée pour {produit}",
+                     "statut": "nouvelle"
+                     })
+                     .execute()
+
+                existing_transaction = (
+                     supabase.table("transactions")
+                     .select("*")
+                     .eq("producteur_tel", producteur["telephone"])
+                     .eq("acheteur_tel", phone)
+                     .eq("produit", produit)
+                     .execute()
+                     )
+
+    if not existing_transaction.data:
+        supabase.table("transactions").insert({
+            "produit": produit,
+            "producteur_tel": producteur["telephone"],
+            "acheteur_tel": phone,
+            "statut": "matching"
+        }).execute()
                     
         print("MATCHING DONE", flush=True)
     except Exception as e:
