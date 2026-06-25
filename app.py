@@ -171,7 +171,7 @@ def check_matching(phone, json_data):
         if role == "producteur":
             produits = json_data.get("produits", [])
             for produit in produits:
-                culture = produit.get("culture")
+                culture = normalize(produit.get("culture"))
                 if not culture: continue
                 
                 acheteurs = supabase.table("acheteurs").select("*").ilike("produit", f"%{culture}%").execute()
@@ -198,7 +198,7 @@ def check_matching(phone, json_data):
                         }).execute()
 
         elif role == "acheteur":
-            produit = json_data.get("produit")
+            produit = normalize(json_data.get("produit"))
             if not produit: return
             
             producteurs = supabase.table("producteurs").select("*").ilike("cultures", f"%{produit}%").execute()
@@ -227,6 +227,17 @@ def check_matching(phone, json_data):
         print("MATCHING DONE", flush=True)
     except Exception as e:
         print("MATCHING ERROR:", str(e), flush=True)
+
+def normalize(text):
+    if not text:
+        return ""
+
+    text = text.lower()
+    text = text.replace("ï", "i")
+    text = text.replace("é", "e")
+    text = text.replace("è", "e")
+
+    return text.strip()
 
 def get_conversation_history(phone):
     try:
