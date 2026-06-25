@@ -2,6 +2,7 @@ from flask import Flask, request
 import requests
 import os
 import json
+import unicodedata
 from groq import Groq
 from supabase import create_client
 
@@ -15,7 +16,7 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 print("=================================", flush=True)
 print("HAPHAK AI STARTING...", flush=True)
@@ -40,8 +41,8 @@ except Exception as e:
 
 supabase = None
 try:
-    if SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY:
-        supabase = create_client(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         print("SUPABASE READY", flush=True)
     else:
         print("SUPABASE CONFIG MISSING", flush=True)
@@ -116,7 +117,7 @@ def save_profile(phone, json_data):
                     supabase.table("producteurs").insert({
                         "telephone": phone,
                         "nom": json_data.get("nom"),
-                        "cultures": culture,
+                        "cultures": normalize(culture),
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).execute()
@@ -136,7 +137,7 @@ def save_profile(phone, json_data):
                 supabase.table("acheteurs").insert({
                     "telephone": phone,
                     "nom": json_data.get("nom"),
-                    "produit": produit,
+                    "produit": normalize(produit),
                     "quantite": json_data.get("quantite"),
                     "region": json_data.get("localisation")
                 }).execute()
@@ -185,37 +186,33 @@ def check_matching(phone, json_data):
                         .eq("acheteur_tel", acheteur["telephone"])
                         .eq("produit", culture)
                         .execute()
-                        
                     )
                     if not existing_alert.data:
-
                         supabase.table("alertes").insert({
-                        "type_alerte": "matching_produit",
-                        "produit": culture,
-                        "producteur_tel": phone,
-                        "acheteur_tel": acheteur["telephone"],
-                        "message": f"Correspondance trouvée pour {culture}",
-                        "statut": "nouvelle"
-                        })
-                        .execute()
+                            "type_alerte": "matching_produit",
+                            "produit": culture,
+                            "producteur_tel": phone,
+                            "acheteur_tel": acheteur["telephone"],
+                            "message": f"Correspondance trouvée pour {culture}",
+                            "statut": "nouvelle"
+                        }).execute()
 
                     existing_transaction = (
                         supabase.table("transactions")
                         .select("*")
                         .eq("producteur_tel", phone)
                         .eq("acheteur_tel", acheteur["telephone"])
-                        .eq("produit", culture)
+                        .eq("produit", normalize(culture))
                         .execute()
-                        )
+                    )
 
                     if not existing_transaction.data:
                         supabase.table("transactions").insert({
-                        "produit": culture,
-                        "producteur_tel": phone,
-                        "acheteur_tel": acheteur["telephone"],
-                        "statut": "matching"
-                        })
-                        .execute()
+                            "produit": culture,
+                            "producteur_tel": phone,
+                            "acheteur_tel": acheteur["telephone"],
+                            "statut": "matching"
+                        }).execute()
 
         elif role == "acheteur":
             produit = normalize(json_data.get("produit"))
@@ -230,38 +227,36 @@ def check_matching(phone, json_data):
                     .select("*")
                     .eq("producteur_tel", producteur["telephone"])
                     .eq("acheteur_tel", phone)
-                    .eq("produit", produit)
+                    .eq("produit", normalize(produit))
                     .execute()
                 )
                 
-            if not existing_alert.data:
-
-                     supabase.table("alertes").insert({
-                     "type_alerte": "matching_produit",
-                     "produit": produit,
-                     "producteur_tel": producteur["telephone"],
-                     "acheteur_tel": phone,
-                     "message": f"Correspondance trouvée pour {produit}",
-                     "statut": "nouvelle"
-                     })
-                     .execute()
+                if not existing_alert.data:
+                    supabase.table("alertes").insert({
+                        "type_alerte": "matching_produit",
+                        "produit": produit,
+                        "producteur_tel": producteur["telephone"],
+                        "acheteur_tel": phone,
+                        "message": f"Correspondance trouvée pour {produit}",
+                        "statut": "nouvelle"
+                    }).execute()
 
                 existing_transaction = (
-                     supabase.table("transactions")
-                     .select("*")
-                     .eq("producteur_tel", producteur["telephone"])
-                     .eq("acheteur_tel", phone)
-                     .eq("produit", produit)
-                     .execute()
-                     )
+                    supabase.table("transactions")
+                    .select("*")
+                    .eq("producteur_tel", producteur["telephone"])
+                    .eq("acheteur_tel", phone)
+                    .eq("produit", produit)
+                    .execute()
+                )
 
-    if not existing_transaction.data:
-        supabase.table("transactions").insert({
-            "produit": produit,
-            "producteur_tel": producteur["telephone"],
-            "acheteur_tel": phone,
-            "statut": "matching"
-        }).execute()
+                if not existing_transaction.data:
+                    supabase.table("transactions").insert({
+                        "produit": produit,
+                        "producteur_tel": producteur["telephone"],
+                        "acheteur_tel": phone,
+                        "statut": "matching"
+                    }).execute()
                     
         print("MATCHING DONE", flush=True)
     except Exception as e:
@@ -271,12 +266,14 @@ def normalize(text):
     if not text:
         return ""
 
-    text = text.lower()
-    text = text.replace("ï", "i")
-    text = text.replace("é", "e")
-    text = text.replace("è", "e")
+    text = text.lower().strip()
 
-    return text.strip()
+    text = ''.join(
+        c for c in unicodedata.normalize('NFD', text)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+    return text
 
 def get_conversation_history(phone):
     try:
