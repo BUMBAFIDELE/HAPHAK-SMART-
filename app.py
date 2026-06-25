@@ -121,7 +121,7 @@ def save_profile(phone, json_data):
                         "quantite": produit.get("quantite"),
                         "territoire": json_data.get("localisation")
                     }).execute()
-                    
+                
         elif role == "acheteur": 
             produit = json_data.get("produit")
             if not produit: return
