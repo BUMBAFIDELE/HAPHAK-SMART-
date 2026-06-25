@@ -199,7 +199,7 @@ def check_matching(phone, json_data):
 
         elif role == "acheteur":
             produit = json_data.get("produit")
-            if not product: return
+            if not produit: return
             
             producteurs = supabase.table("producteurs").select("*").ilike("cultures", f"%{produit}%").execute()
 
