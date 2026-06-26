@@ -164,6 +164,8 @@ def save_profile(phone, json_data):
 # MOTEUR DE MATCHING AUTOMATIQUE
 # =========================================
 def check_matching(phone, json_data):
+    print("CHECK MATCHING START", flush=True)
+    print(json_data, flush=True)
     try:
         if not supabase: return
         role = json_data.get("role")
@@ -231,7 +233,7 @@ def check_matching(phone, json_data):
                     .eq("produit", normalize(produit))
                     .execute()
                 )
-
+                print("ACHETEURS TROUVES :", acheteurs.data, flush=True)
                 print("ALERTE CREATED", flush=True)
                 
                 if not existing_alert.data:
