@@ -205,6 +205,7 @@ def check_matching(phone, json_data):
                         .eq("produit", normalize(culture))
                         .execute()
                     )
+                    print("TRANSACTION CREATED", flush=True)
 
                     if not existing_transaction.data:
                         supabase.table("transactions").insert({
@@ -230,6 +231,8 @@ def check_matching(phone, json_data):
                     .eq("produit", normalize(produit))
                     .execute()
                 )
+
+                print("ALERTE CREATED", flush=True)
                 
                 if not existing_alert.data:
                     supabase.table("alertes").insert({
