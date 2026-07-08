@@ -24,6 +24,7 @@ print("VERIFY_TOKEN:", "OK" if VERIFY_TOKEN else "MISSING", flush=True)
 print("WHATSAPP_TOKEN:", "OK" if WHATSAPP_TOKEN else "MISSING", flush=True)
 print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID, flush=True)
 print("GROQ_API_KEY:", "OK" if GROQ_API_KEY else "MISSING", flush=True)
+print("SUPABASE_SERVICE_ROLE_KEY:", "OK" if SUPABASE_SERVICE_ROLE_KEY else "MISSING", flush=True)
 print("=================================", flush=True)
 
 # =========================================
@@ -89,7 +90,7 @@ def get_conversation_history(phone):
 # =========================================
 @app.route("/")
 def home():
-    return "HAPHAK Smart Agent is running with DB Architecture!", 200
+    return "HAPHAK Smart Agent is running with Transactional Notification Engine!", 200
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -187,12 +188,17 @@ Le JSON doit toujours être valide."""
                 
                 # Analyse de la réponse et traitement de la donnée structurée
                 if "===HAPHAK_JSON===" in reply: 
+                    clean_json_str = ""
                     try: 
                         text_part, json_part = reply.split("===HAPHAK_JSON===", 1) 
                         reply = text_part.strip() 
-                        json_data = json.loads(json_part.strip()) 
                         
-                        # EXECUTION TRANSACTIONNELLE UNIQUE VIA RPC (Supabase gère tout le matching)
+                        clean_json_str = json_part.strip()
+                        print(f"--- JSON EXTRAIT DE L'IA --- : {clean_json_str}", flush=True)
+                        
+                        json_data = json.loads(clean_json_str) 
+                        
+                        # EXECUTION TRANSACTIONNELLE UNIQUE VIA RPC
                         print(f"Lancement du traitement RPC pour {user_number}...", flush=True)
                         rpc_response = supabase.rpc(
                             "process_haphak_transactional", 
@@ -205,7 +211,9 @@ Le JSON doit toujours être valide."""
                         print(f"RPC RESULT: {rpc_response.data}", flush=True)
                         
                     except Exception as e: 
-                        print("JSON PARSE OR RPC EXECUTION ERROR:", str(e), flush=True) 
+                        print(f"CRITICAL PARSE/RPC ERROR: {str(e)}", flush=True)
+                        if clean_json_str:
+                            print(f"Contenu brut ayant causé le crash : {clean_json_str}", flush=True)
                         
                 save_conversation(user_number, "assistant", reply) 
         except Exception as groq_error: 
@@ -224,6 +232,45 @@ Le JSON doit toujours être valide."""
     except Exception as e: 
         print("GENERAL ERROR:", str(e), flush=True) 
     return "OK", 200
+
+# ==========================================================
+# ÉTAPE 9 : ROUTE DE NOTIFICATION PUSH AUTOMATIQUE (WEBHOOK INTERNE)
+# ==========================================================
+@app.route("/send-matching-notification", methods=["POST"])
+def send_matching_notification():
+    try:
+        data = request.get_json()
+        print(f"WEBHOOK ALERTE REÇU DE SUPABASE : {data}", flush=True)
+        
+        record = data.get("record", {})
+        if not record:
+            return "No record found", 400
+            
+        acheteur_tel = record.get("acheteur_tel")
+        producteur_tel = record.get("producteur_tel")
+        produit = record.get("produit", "un produit")
+        
+        url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
+        headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
+        
+        # 1. Alerte instantanée pour le Producteur
+        if producteur_tel:
+            msg_prod = f"Notification Haphak : Un acheteur recherche votre produit ({produit}). Nous initions la mise en relation !"
+            payload_prod = { "messaging_product": "whatsapp", "to": producteur_tel, "type": "text", "text": { "body": msg_prod } }
+            requests.post(url, headers=headers, json=payload_prod, timeout=30)
+            print(f"Alerte WhatsApp envoyée au Producteur : {producteur_tel}", flush=True)
+            
+        # 2. Alerte instantanée pour l'Acheteur
+        if acheteur_tel:
+            msg_ach = f"Notification Haphak : Nous avons trouvé un producteur correspondant à votre demande de ({produit}) !"
+            payload_ach = { "messaging_product": "whatsapp", "to": acheteur_tel, "type": "text", "text": { "body": msg_ach } }
+            requests.post(url, headers=headers, json=payload_ach, timeout=30)
+            print(f"Alerte WhatsApp envoyée à l'Acheteur : {acheteur_tel}", flush=True)
+            
+        return "Notifications envoyées automatiquement", 200
+    except Exception as e:
+        print(f"ERROR IN SEND MATCHING NOTIFICATION: {str(e)}", flush=True)
+        return "Internal Error", 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
