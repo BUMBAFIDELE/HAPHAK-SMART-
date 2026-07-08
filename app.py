@@ -20,11 +20,6 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 print("=================================", flush=True)
 print("HAPHAK AI STARTING...", flush=True)
-print("VERIFY_TOKEN:", "OK" if VERIFY_TOKEN else "MISSING", flush=True)
-print("WHATSAPP_TOKEN:", "OK" if WHATSAPP_TOKEN else "MISSING", flush=True)
-print("PHONE_NUMBER_ID:", PHONE_NUMBER_ID, flush=True)
-print("GROQ_API_KEY:", "OK" if GROQ_API_KEY else "MISSING", flush=True)
-print("SUPABASE_SERVICE_ROLE_KEY:", "OK" if SUPABASE_SERVICE_ROLE_KEY else "MISSING", flush=True)
 print("=================================", flush=True)
 
 # =========================================
@@ -35,8 +30,6 @@ try:
     if GROQ_API_KEY:
         client = Groq(api_key=GROQ_API_KEY)
         print("GROQ READY", flush=True)
-    else:
-        print("NO GROQ API KEY FOUND", flush=True)
 except Exception as e:
     print("GROQ INIT ERROR:", str(e), flush=True)
 
@@ -45,8 +38,6 @@ try:
     if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         print("SUPABASE READY", flush=True)
-    else:
-        print("SUPABASE CONFIG MISSING", flush=True)
 except Exception as e:
     print("SUPABASE ERROR:", str(e), flush=True)
 
@@ -65,7 +56,6 @@ def save_conversation(phone, role, message):
         print("SAVE CONVERSATION ERROR:", str(e), flush=True)
 
 def save_user_initial(phone):
-    """Crée l'utilisateur dès le premier contact s'il n'existe pas encore."""
     try:
         if not supabase: return
         existing = supabase.table("users").select("*").eq("telephone", phone).execute() 
@@ -90,7 +80,7 @@ def get_conversation_history(phone):
 # =========================================
 @app.route("/")
 def home():
-    return "HAPHAK Smart Agent is running with Transactional Notification Engine!", 200
+    return "HAPHAK Smart Agent is running with Native JSON Mode!", 200
 
 @app.route("/webhook", methods=["GET"])
 def verify_webhook():
@@ -117,7 +107,6 @@ def webhook():
         user_number = message.get("from") 
         user_text = message.get("text", {}).get("body", "") 
         
-        # Enregistrement initial du message
         save_user_initial(user_number) 
         save_conversation(user_number, "user", user_text) 
         if not user_text: return "OK", 200 
@@ -127,99 +116,67 @@ def webhook():
             if client: 
                 history = get_conversation_history(user_number) 
                 
-                system_prompt = """Tu es Haphak Smart Agent / Green Agro. 
+                # --- PREMIER APPEL : LA RÉPONSE TEXTE NATURELLE POUR L'UTILISATEUR ---
+                system_prompt_text = "Tu es Haphak Smart Agent / Green Agro. Tu dialogues avec des producteurs, acheteurs, transporteurs, entreprises et citoyens en Afrique. Réponds chaleureusement, clairement et brièvement à l'utilisateur."
+                messages_text = [{"role": "system", "content": system_prompt_text}]
+                messages_text.extend(history)
+                messages_text.append({"role": "user", "content": user_text})
+                
+                completion_text = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages_text,
+                    temperature=0.7,
+                    max_tokens=400
+                )
+                reply = completion_text.choices[0].message.content
 
-Tu aides :
-producteurs
-acheteurs
-transporteurs
-entreprises
-citoyens
+                # --- DEUXIÈME APPEL : EXTRACTION STRUCTURÉE SÉCURISÉE (MODE JSON) ---
+                system_prompt_json = """Tu es un extracteur de données strict. Analyse le message de l'utilisateur et génère UNIQUEMENT un objet JSON valide.
+Les rôles possibles : producteur, acheteur, transporteur, entreprise, citoyen.
 
-Tu travaille dans plusieurs pays et plusieurs langues.
-
-Tu dois toujours :
-Répondre normalement au client.
-Comprendre son profil.
-Identifier son rôle.
-
-Les rôles possibles :
-producteur
-acheteur
-transporteur
-entreprise
-citoyen
-
-A la fin de chaque réponse ajoute exactement :
-===HAPHAK_JSON===
-puis un JSON valide contenant les informations détectées.
-
-Exemple :
+Structure attendue :
 {
-"role": "producteur",
-"nom": "Fidele",
-"produits": [
-{"culture": "maïs", "quantite": "5 tonnes"}
-]
+  "role": "producteur" ou "acheteur" ou "transporteur" ou "citoyen" ou null,
+  "nom": "nom détecté ou null",
+  "localisation": "ville ou territoire détecté ou null",
+  "produit": "nom du produit (uniquement pour acheteur) ou null",
+  "quantite": "quantité détectée ou null",
+  "produits": [ {"culture": "maïs", "quantite": "5 tonnes"} ] (uniquement pour producteur)
 }
-Exemple acheteur :
-{
-"role": "acheteur",
-"nom": "Jean",
-"produit": "maïs",
-"quantite": "10 tonnes",
-"localisation": "Goma"
-}
+Si une information est absente, mets null. Ne rajoute aucun texte explicatif en dehors du JSON."""
 
-Si une information est inconnue, mets null.
-Le JSON doit toujours être valide."""
+                messages_json = [{"role": "system", "content": system_prompt_json}, {"role": "user", "content": user_text}]
                 
-                messages_for_ai = [{"role": "system", "content": system_prompt}] 
-                messages_for_ai.extend(history) 
-                messages_for_ai.append({"role": "user", "content": user_text}) 
+                completion_json = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages_json,
+                    temperature=0.0, # Déterminisme maximal
+                    response_format={"type": "json_object"}, # FORCE LE MODE JSON NATIVELEMENT
+                    max_tokens=400
+                )
                 
-                completion = client.chat.completions.create( 
-                    model="llama-3.3-70b-versatile", 
-                    messages=messages_for_ai, 
-                    temperature=0.7, 
-                    max_tokens=800 
-                ) 
-                reply = completion.choices[0].message.content 
+                clean_json_str = completion_json.choices[0].message.content.strip()
+                print(f"--- NATIVE JSON EXTRAIT --- : {clean_json_str}", flush=True)
                 
-                # Analyse de la réponse et traitement de la donnée structurée
-                if "===HAPHAK_JSON===" in reply: 
-                    clean_json_str = ""
-                    try: 
-                        text_part, json_part = reply.split("===HAPHAK_JSON===", 1) 
-                        reply = text_part.strip() 
+                if clean_json_str:
+                    try:
+                        json_data = json.loads(clean_json_str)
                         
-                        clean_json_str = json_part.strip()
-                        print(f"--- JSON EXTRAIT DE L'IA --- : {clean_json_str}", flush=True)
-                        
-                        json_data = json.loads(clean_json_str) 
-                        
-                        # EXECUTION TRANSACTIONNELLE UNIQUE VIA RPC
+                        # Exécution de notre fonction RPC transactionnelle blindée
                         print(f"Lancement du traitement RPC pour {user_number}...", flush=True)
                         rpc_response = supabase.rpc(
                             "process_haphak_transactional", 
-                            {
-                                "p_phone": user_number,
-                                "p_json_data": json_data
-                            }
+                            {"p_phone": user_number, "p_json_data": json_data}
                         ).execute()
-                        
                         print(f"RPC RESULT: {rpc_response.data}", flush=True)
-                        
-                    except Exception as e: 
-                        print(f"CRITICAL PARSE/RPC ERROR: {str(e)}", flush=True)
-                        if clean_json_str:
-                            print(f"Contenu brut ayant causé le crash : {clean_json_str}", flush=True)
+                    except Exception as rpc_err:
+                        print(f"RPC ERROR: {str(rpc_err)}", flush=True)
                         
                 save_conversation(user_number, "assistant", reply) 
         except Exception as groq_error: 
             print("GROQ ERROR:", str(groq_error), flush=True) 
             
-        # Envoi de la réponse finale à l'utilisateur sur WhatsApp
+        # Envoi WhatsApp
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
         headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
         payload = { 
@@ -253,19 +210,15 @@ def send_matching_notification():
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
         headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
         
-        # 1. Alerte instantanée pour le Producteur
         if producteur_tel:
             msg_prod = f"Notification Haphak : Un acheteur recherche votre produit ({produit}). Nous initions la mise en relation !"
             payload_prod = { "messaging_product": "whatsapp", "to": producteur_tel, "type": "text", "text": { "body": msg_prod } }
             requests.post(url, headers=headers, json=payload_prod, timeout=30)
-            print(f"Alerte WhatsApp envoyée au Producteur : {producteur_tel}", flush=True)
             
-        # 2. Alerte instantanée pour l'Acheteur
         if acheteur_tel:
             msg_ach = f"Notification Haphak : Nous avons trouvé un producteur correspondant à votre demande de ({produit}) !"
             payload_ach = { "messaging_product": "whatsapp", "to": acheteur_tel, "type": "text", "text": { "body": msg_ach } }
             requests.post(url, headers=headers, json=payload_ach, timeout=30)
-            print(f"Alerte WhatsApp envoyée à l'Acheteur : {acheteur_tel}", flush=True)
             
         return "Notifications envoyées automatiquement", 200
     except Exception as e:
