@@ -190,8 +190,9 @@ Si une information est absente, mets null. Ne rajoute aucun texte explicatif en 
         print("GENERAL ERROR:", str(e), flush=True) 
     return "OK", 200
 
+
 # ==========================================================
-# ÉTAPE 9 : ROUTE DE NOTIFICATION PUSH AUTOMATIQUE (WEBHOOK INTERNE)
+# ÉTAPE 9 : ROUTE DE NOTIFICATION PUSH (STRATÉGIE COMMISSION)
 # ==========================================================
 @app.route("/send-matching-notification", methods=["POST"])
 def send_matching_notification():
@@ -214,19 +215,31 @@ def send_matching_notification():
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
         headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
         
-        # 1. Message personnalisé pour le Producteur avec le numéro de l'acheteur
+        # 1. Message de commission pour le Producteur (Numéro masqué)
         if producteur_tel:
-            msg_prod = f"Notification Haphak : Un acheteur est intéressé par votre produit ({produit}). Contactez-le directement sur WhatsApp ici : wa.me/{acheteur_tel}"
+            msg_prod = (
+                f"🟢 *Haphak Match !* Un acheteur sérieux cherche votre produit : *{produit}*.\n\n"
+                f"🔒 _Le numéro de l'acheteur est actuellement masqué._\n\n"
+                f"💰 *Pour débloquer son contact et conclure la vente, veuillez payer le jeton de mise en relation (2$ ou 5500 FC).* \n\n"
+                f"👉 Envoyez votre paiement via M-Pesa ou Airtel Money au +243997328120 ou +243822928730. \n"
+                f"Une fois le paiement effectué, envoyez la capture d'écran ici pour recevoir le numéro de l'acheteur."
+            )
             payload_prod = { "messaging_product": "whatsapp", "to": producteur_tel, "type": "text", "text": { "body": msg_prod } }
             requests.post(url, headers=headers, json=payload_prod, timeout=30)
             
-        # 2. Message personnalisé pour l'Acheteur avec le numéro du producteur
+        # 2. Message de commission pour l'Acheteur (Numéro masqué)
         if acheteur_tel:
-            msg_ach = f"Notification Haphak : Un producteur correspondant à votre demande de ({produit}) a été trouvé ! Contactez-le directement sur WhatsApp ici : wa.me/{producteur_tel}"
+            msg_ach = (
+                f"🟢 *Haphak Match !* Un producteur vérifié de *{produit}* a été trouvé !\n\n"
+                f"🔒 _Le numéro du producteur est actuellement masqué._\n\n"
+                f"💰 *Pour débloquer son contact et acheter le produit, veuillez payer le jeton de mise en relation (2$ ou 5500 FC).* \n\n"
+                f"👉 Envoyez votre paiement via M-Pesa ou Airtel Money au +243997328120 ou +243822928730. \n"
+                f"Une fois le paiement effectué, envoyez la capture d'écran ici pour recevoir le numéro du producteur."
+            )
             payload_ach = { "messaging_product": "whatsapp", "to": acheteur_tel, "type": "text", "text": { "body": msg_ach } }
             requests.post(url, headers=headers, json=payload_ach, timeout=30)
             
-        return "Notifications envoyées avec succès", 200
+        return "Notifications de commission envoyées avec succès", 200
     except Exception as e:
         print(f"ERROR IN SEND MATCHING NOTIFICATION: {str(e)}", flush=True)
         return "Internal Error", 500
