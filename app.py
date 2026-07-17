@@ -197,7 +197,7 @@ Si une information est absente, mets null. Ne rajoute aucun texte explicatif en 
 def send_matching_notification():
     try:
         data = request.get_json()
-        print(f"WEBHOOK ALERTE REÇU DE SUPABASE : {data}", flush=True)
+        print(f"WEBHOOK ALERTE REÇU : {data}", flush=True)
         
         record = data.get("record", {})
         if not record:
@@ -207,20 +207,26 @@ def send_matching_notification():
         producteur_tel = record.get("producteur_tel")
         produit = record.get("produit", "un produit")
         
+        # SÉCURITÉ : Éviter de s'envoyer une alerte à soi-même ou de traiter un doublon vide
+        if not acheteur_tel or not producteur_tel or (acheteur_tel == producteur_tel):
+            return "Ignored: Same phone numbers or missing data", 200
+        
         url = f"https://graph.facebook.com/v19.0/{PHONE_NUMBER_ID}/messages" 
         headers = { "Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json" } 
         
+        # 1. Message personnalisé pour le Producteur avec le numéro de l'acheteur
         if producteur_tel:
-            msg_prod = f"Notification Haphak : Un acheteur recherche votre produit ({produit}). Nous initions la mise en relation !"
+            msg_prod = f"Notification Haphak : Un acheteur est intéressé par votre produit ({produit}). Contactez-le directement sur WhatsApp ici : wa.me/{acheteur_tel}"
             payload_prod = { "messaging_product": "whatsapp", "to": producteur_tel, "type": "text", "text": { "body": msg_prod } }
             requests.post(url, headers=headers, json=payload_prod, timeout=30)
             
+        # 2. Message personnalisé pour l'Acheteur avec le numéro du producteur
         if acheteur_tel:
-            msg_ach = f"Notification Haphak : Nous avons trouvé un producteur correspondant à votre demande de ({produit}) !"
+            msg_ach = f"Notification Haphak : Un producteur correspondant à votre demande de ({produit}) a été trouvé ! Contactez-le directement sur WhatsApp ici : wa.me/{producteur_tel}"
             payload_ach = { "messaging_product": "whatsapp", "to": acheteur_tel, "type": "text", "text": { "body": msg_ach } }
             requests.post(url, headers=headers, json=payload_ach, timeout=30)
             
-        return "Notifications envoyées automatiquement", 200
+        return "Notifications envoyées avec succès", 200
     except Exception as e:
         print(f"ERROR IN SEND MATCHING NOTIFICATION: {str(e)}", flush=True)
         return "Internal Error", 500
