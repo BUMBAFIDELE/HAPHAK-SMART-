@@ -1,7 +1,7 @@
 from flask import Flask, request
 import requests
 import os
-import json
+import json 
 import unicodedata
 from groq import Groq
 from supabase import create_client
