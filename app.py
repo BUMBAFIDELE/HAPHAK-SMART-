@@ -148,7 +148,7 @@ Si une information est absente, mets null. Ne rajoute aucun texte explicatif en 
                 messages_json = [{"role": "system", "content": system_prompt_json}, {"role": "user", "content": user_text}]
                 
                 completion_json = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.1-70b-versatile",
                     messages=messages_json,
                     temperature=0.0, # Déterminisme maximal
                     response_format={"type": "json_object"}, # FORCE LE MODE JSON NATIVELEMENT
