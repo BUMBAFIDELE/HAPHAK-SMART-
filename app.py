@@ -413,7 +413,8 @@ Le JSON doit toujours être valide."""
             "type": "text", 
             "text": { "body": reply[:4096] } 
         } 
-        requests.post(url, headers=headers, json=payload, timeout=30) 
+        response = requests.post(url, headers=headers, json=payload, timeout=30) 
+        print("WHATSAPP RESPONSE:", response.status_code, response.text, flush=True)
     except Exception as e: 
         print("GENERAL ERROR:", str(e), flush=True) 
     return "OK", 200
